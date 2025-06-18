@@ -1,0 +1,134 @@
+\documentclass[12pt]{article}
+\usepackage{graphicx}
+\usepackage[margin=1in]{geometry}
+\title{\textbf{Contactless Prediction of Galvanic Skin Response (GSR) via RGB-Thermal Video: Technical Proposal and Impact Analysis}}
+\author{Department of Computer Science, University X}
+\date{\today}
+
+\begin{document}
+    \maketitle
+
+    \begin{abstract}
+        Contactless physiological monitoring is an emerging field that leverages computer vision to extract vital signals without physical sensors. This proposal presents a novel approach to predict Galvanic Skin Response (GSR) from synchronized RGB and thermal video. GSR (also known as electrodermal activity) reflects sympathetic nervous system arousal and is widely used in stress and emotion research:contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}. Traditionally GSR is measured via contact sensors on the skin, limiting long-term monitoring and user comfort. Recent advances in video-based sensing have enabled contactless estimation of heart rate, respiration, and other vitals:contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}, but GSR has received little attention:contentReference[oaicite:4]{index=4}. We propose to develop a machine learning system that takes aligned facial RGB-thermal video as input and outputs predicted GSR levels. The system will be validated with ground-truth GSR data under controlled emotional stimuli. In addition to the technical proposal, we analyze the scientific merit, practical impact, and societal implications of this work. Our contributions will include a new dataset of RGB-thermal face videos with GSR labels, baseline algorithms for contactless GSR estimation, and evaluations of feasibility in real-world scenarios. This proposal is structured as follows: after an introduction and project goals, we outline deliverables, discuss impact and applications, and address ethical/data governance issues, concluding with future work directions.
+    \end{abstract}
+
+    \tableofcontents
+
+
+    \section{Introduction}
+    Galvanic Skin Response (GSR), or Electrodermal Activity (EDA), is the change in skin electrical conductance caused by emotional arousal:contentReference[oaicite:5]{index=5}. GSR increases with sweat gland activity under sympathetic activation, making it a sensitive measure of stress and emotion:contentReference[oaicite:6]{index=6}:contentReference[oaicite:7]{index=7}. In clinical and affective computing contexts, GSR is a primary indicator of stress:contentReference[oaicite:8]{index=8} and has been effectively used in anxiety detection and human-computer interaction studies:contentReference[oaicite:9]{index=9}:contentReference[oaicite:10]{index=10}. Traditionally, GSR is measured via electrodes placed on the hands or fingers, which can be intrusive and impractical for continuous monitoring.
+
+    Contactless monitoring using cameras has gained traction because it can extract vital signs (heart rate, respiration, SpO$_2$, etc.) from facial video via photoplethysmography (PPG) or thermal patterns:contentReference[oaicite:11]{index=11}:contentReference[oaicite:12]{index=12}. For example, camera-based methods can accurately recover pulse waveforms (remote PPG) and infer heart rate and respiratory rate without physical contact:contentReference[oaicite:13]{index=13}:contentReference[oaicite:14]{index=14}. Such Visual Contactless Physiological Monitoring (VCPM) systems promise comfort, automation, and reduced infection risk in healthcare settings:contentReference[oaicite:15]{index=15}. However, as noted in recent reviews, the application of contactless techniques to electrodermal signals remains largely unexplored:contentReference[oaicite:16]{index=16}. Jo \emph{et al.} (2021) specifically point out that while many bio-signals have contactless alternatives, non-contact detection of GSR is lacking:contentReference[oaicite:17]{index=17}.
+
+    A recent conference study by Jo \emph{et al.} demonstrates the concept of non-contact GSR estimation: they recorded participants’ faces with an infrared camera while simultaneously measuring finger GSR under visual stress stimuli, and found correlations between facial image intensities and the GSR sensor output:contentReference[oaicite:18]{index=18}. This suggests that sweat-related micro-movements or heat changes in facial regions may encode GSR information. Meanwhile, contactless emotion and stress recognition has been validated via heart rate variability from video:contentReference[oaicite:19]{index=19} or thermal facial patterns:contentReference[oaicite:20]{index=20}. For instance, remote cameras have successfully estimated heart rate variability and classified stress vs. relaxation states:contentReference[oaicite:21]{index=21}, and thermal imaging has shown that facial temperature trends can discriminate stress conditions (using GSR as the reference standard):contentReference[oaicite:22]{index=22}. These studies establish a precedent: video signals contain rich autonomic information.
+
+    Building on this context, our project aims to pioneer the contactless estimation of GSR using dual-camera video (RGB and thermal). By combining color and thermal cues, we hope to capture both subtle skin color/vascular changes and heat distribution changes due to sweat or blood flow. This multi-modal approach may improve robustness under varied lighting and individual differences. The key novelty is an end-to-end pipeline that takes live video as input and outputs a continuous GSR prediction, effectively reading subtle facial cues related to sweat gland activation. The following sections outline our technical approach, deliverables, and the expected impact of this work, emphasizing both scientific merit and societal considerations.
+
+    \begin{figure}[ht]
+        \centering
+        \fbox{\parbox{0.8\textwidth}{\centering \emph{Figure:} System architecture diagram (placeholder)}}
+        \caption{Proposed system architecture for contactless GSR prediction via synchronized RGB and thermal cameras.}
+        \label{fig:architecture}
+    \end{figure}
+
+
+    \section{Project Goals}
+    The overarching goal of this project is to design and implement a contactless GSR prediction system using RGB and thermal video inputs. The specific aims are:
+    \begin{itemize}
+        \item \textbf{Data Acquisition:} Collect a multimodal dataset of synchronized RGB and thermal face videos with ground-truth GSR labels. We will induce controlled emotional stimuli (e.g., stressors) while recording participants’ face video and concurrently logging finger GSR sensor data.
+        \item \textbf{Algorithm Development:} Develop computer vision and machine learning models to predict GSR from the video data. This includes preprocessing (face/ROI detection, signal extraction), feature engineering (color and thermal signal channels), and training regression models. We will explore deep learning architectures that fuse RGB and thermal features, inspired by remote PPG literature:contentReference[oaicite:23]{index=23}:contentReference[oaicite:24]{index=24}.
+        \item \textbf{System Integration:} Create an end-to-end prototype that captures live video, processes it in real time, and outputs predicted GSR values. We will design a software pipeline that ingests camera streams, applies the trained model, and presents the results on a user interface.
+        \item \textbf{Validation and Evaluation:} Rigorously evaluate the contactless GSR predictions against ground-truth sensor readings. Metrics will include correlation, mean absolute error, and classification accuracy for stress detection (binary stressed vs relaxed). We will perform cross-subject validation to assess generalization.
+        \item \textbf{Documentation and Dissemination:} Document the methodology, code, and findings. We plan to release the dataset and code as an open resource for research reproducibility. Results will be prepared for publication in relevant journals/conferences.
+    \end{itemize}
+
+    These goals will be pursued over a 1.5-year MRes timeline, with key milestones for data collection, algorithm training, system testing, and final reporting (detailed in the next section). By achieving these goals, we will demonstrate the feasibility of extracting GSR from video cues, opening a new modality for affective sensing and health monitoring.
+
+
+    \section{Proposed Deliverables (Milestone-based)}
+    We structure the project into the following major deliverables, each with target completion dates:
+    \begin{enumerate}
+        \item \textbf{Literature Review and Protocol Design (Months 1--3):} Conduct an in-depth review of contactless physiological sensing and emotion recognition methods. Finalize experimental protocols for stimuli presentation and data acquisition. Secure ethical approval and assemble equipment (RGB camera, thermal camera, GSR sensor).
+        \item \textbf{Data Collection (Months 4--6):} Recruit participants and record synchronized RGB-thermal face video along with GSR. We will induce stress or emotional arousal via validated tasks (e.g., mental arithmetic, startling stimuli) to produce GSR fluctuations. Target a dataset of at least 30 subjects under both resting and aroused conditions.
+        \item \textbf{Model Development (Months 7--12):} Preprocess the collected data to align frames and sensor timestamps. Extract ROI signals (e.g. mean pixel intensity over facial regions) in both RGB and thermal streams. Implement and train machine learning models (e.g. convolutional neural networks, recurrent nets) that map video-derived features to GSR values. Benchmark traditional regression versus deep learning fusion models.
+        \item \textbf{Prototype Implementation (Months 13--15):} Integrate the best-performing model into a prototype application. This will include a figure placeholder for the data pipeline:
+        \begin{figure}[ht]
+            \centering
+            \fbox{\parbox{0.8\textwidth}{\centering \emph{Figure:} Data processing pipeline (placeholder)}}
+            \caption{Schematic of the data pipeline from camera capture to GSR prediction.}
+            \label{fig:pipeline}
+        \end{figure}
+        The system will process live video frames through face tracking, feature extraction, and the trained model to yield continuous GSR predictions, updating in real time.
+        \item \textbf{Evaluation and Refinement (Months 16--18):} Compare predicted GSR with sensor GSR for new subjects. Perform statistical analysis (correlation coefficients, Bland-Altman plots) and classification of stress episodes. Optimize the model and pipeline for accuracy and efficiency. Prepare the final report and manuscript.
+    \end{enumerate}
+
+    These milestones will produce concrete deliverables: a curated dataset, code repository, prototype software, and a detailed technical report. Our approach aligns with best practices in computer vision and physiological monitoring, adapting methods from successful remote PPG research:contentReference[oaicite:25]{index=25} to the novel task of GSR prediction.
+
+
+    \section{Scientific and Practical Impact}
+    The proposed research has both scientific novelty and practical utility. Scientifically, it extends the frontier of contactless physiological sensing by targeting GSR, a signal previously considered accessible only via electrodes. Creating a working model for video-based GSR would constitute a \emph{first} in the literature, potentially uncovering new facial or thermal biomarkers of sudomotor activity. The resulting dataset (RGB-thermal video paired with GSR) will be a valuable resource for the research community, addressing the current lack of multimodal data for non-contact GSR estimation:contentReference[oaicite:26]{index=26}. Methodologically, our project will develop new algorithms for fusing color and thermal information for physiological inference, contributing to machine learning knowledge in multi-sensor fusion.
+
+    Practically, a contactless GSR sensor has numerous applications. In affective computing and human-computer interaction, it allows devices to sense user stress or engagement without wearables. In telehealth, it adds a dimension of emotional monitoring during remote consultations without burdening patients with sensors. For workplace or educational settings, non-intrusive stress monitoring could improve well-being. The concept is in line with the growing trend of smart environments where health signals are passively monitored. For example, remote monitoring has proven effective for stress and cognitive load using thermal imaging, validated by EDA as ground truth:contentReference[oaicite:27]{index=27}. If our system performs well, it would complement existing contactless vitals monitors, as reported in market analyses of contactless health technology growth:contentReference[oaicite:28]{index=28}:contentReference[oaicite:29]{index=29}.
+
+    Moreover, demonstrating that facial cues contain sweat-related information may stimulate further scientific inquiry into the physiology of emotion expression. It could inspire new studies of skin perfusion and micro-expressions linked to autonomic responses. As prior work has shown, combinations of GSR with heart signals improve stress detection:contentReference[oaicite:30]{index=30}:contentReference[oaicite:31]{index=31}; our system could provide those inputs in one package. In summary, the project promises to advance the state of knowledge in physiological signal processing and yield tools that can be widely used in research and applied domains.
+
+
+    \section{Real-World Application Domains}
+    Contactless GSR prediction opens opportunities across domains:
+    \begin{itemize}
+        \item \textbf{Healthcare and Mental Health:} Telemedicine platforms could incorporate non-contact stress monitoring, aiding clinicians in assessing patient anxiety or therapy progress. Hospitals and eldercare facilities may use it for unobtrusive monitoring of patients’ emotional state.
+        \item \textbf{Automotive and Transportation:} In driver monitoring systems, adding GSR estimates could improve detection of driver stress or fatigue beyond facial expression alone, enhancing safety. This aligns with ongoing research on driver emotion recognition.
+        \item \textbf{Workplace and Education:} Employers or educators could use aggregated stress metrics (with consent) to identify burnout risks. Because GSR reflects cognitive load, it could also aid adaptive learning environments that respond to student engagement levels.
+        \item \textbf{Consumer Electronics and VR/AR:} Smart home devices or VR headsets equipped with cameras could adapt content (lighting, difficulty, feedback) based on user arousal. Game developers might use real-time GSR to make experiences more immersive.
+        \item \textbf{Security and Lie Detection:} Although ethically sensitive, law enforcement or security screening sometimes uses GSR as polygraph input. A non-contact version could, in principle, screen individuals at borders or facilities (this raises ethical questions, see below).
+    \end{itemize}
+    These applications would leverage the contactless nature of our system. For instance, thermal-based stress detection studies have shown that certain facial regions’ temperature changes can discern stress vs. rest:contentReference[oaicite:32]{index=32}. If the present method works, one could envision a smartphone app or a kiosk that observes facial cues and alerts users to high stress or detects anomalous arousal. We include a placeholder for an example user interface:
+    \begin{figure}[ht]
+        \centering
+        \fbox{\parbox{0.8\textwidth}{\centering \emph{Figure:} Application UI (placeholder)}}
+        \caption{Conceptual user interface illustrating real-time display of predicted GSR (as a skin conductance curve) and derived stress level.}
+        \label{fig:ui}
+    \end{figure}
+    By combining RGB and thermal sensors, the system is robust across lighting conditions and could be integrated into industrial equipment (e.g. worker helmet sensors) or consumer devices. Overall, the technology has potential impact in any domain where human stress or arousal monitoring is valuable.
+
+
+    \section{Societal Implications}
+    While contactless GSR monitoring offers benefits, it also raises important societal issues. Privacy is a foremost concern: video data captures identity and personal expressions, and inferring internal states from video can be sensitive. As Huang \emph{et al.} note, video data that includes faces and derived vital signs require careful governance:contentReference[oaicite:33]{index=33}. If deployed, such systems must ensure that only authorized individuals or analytics have access to the physiological outputs, and the raw video should be protected. Individuals may feel discomfort being surveilled for stress; there is a risk of misuse (e.g. employers monitoring employees’ mental state) unless strong policies are enforced.
+
+    There are also questions of consent and transparency. Users should be explicitly informed if their cameras are being used to infer health metrics. The technology could unintentionally stigmatize certain groups (if stress correlates with demographic factors) or be used punitively (e.g. penalizing high-stress employees). We must guard against such societal harms. On the positive side, contactless GSR might empower individuals by giving them feedback on their own stress (like a mirror). In mental health, enabling continuous monitoring without wearables could encourage proactive management of anxiety.
+
+    Another implication is equity: camera-based sensing can be biased by skin tone or cultural differences in expression. Prior research in remote PPG has highlighted challenges when algorithms are trained on limited skin-type data. We must ensure our dataset and models are diverse. Social acceptance of such monitoring will depend on cultural attitudes toward surveillance and mental health. We will engage with stakeholders and follow community standards to address these concerns. In sum, while the technology could greatly aid personal well-being and healthcare, its societal deployment must be accompanied by safeguards for privacy and fairness:contentReference[oaicite:34]{index=34}.
+
+
+    \section{Ethical and Data Governance Considerations}
+    From an ethical standpoint, data governance is critical. All data collection will comply with institutional ethics review. Participants will provide informed consent for video and physiological recording, understanding the use of their data. Stored video will be anonymized (face-blurred if possible) after processing, and only de-identified features will be retained for analysis. Any public release of the dataset will remove personal identifiers. Compliance with data protection regulations (e.g. GDPR, HIPAA where applicable) is mandatory. Because GSR is a health-related signal, we treat it as sensitive personal data.
+
+    Algorithmic fairness must also be considered. We will evaluate model performance across different skin tones and lighting conditions to detect bias. If biases are found, we will adjust training (e.g., oversampling, color calibration) or employ skin-independent features. To protect privacy in future extensions, we may employ privacy-preserving techniques. For example, defocused or depth cameras (as explored in sleep monitoring research) can obscure identity while still capturing vital signs. Federated Learning (FL) is another avenue: by training models locally on-device and sharing only model updates, participant privacy is preserved:contentReference[oaicite:35]{index=35}. Huang \emph{et al.} highlight FL as promising for medical video data, allowing joint modeling without sharing raw images:contentReference[oaicite:36]{index=36}. Such approaches align with ethical imperatives to minimize data exposure.
+
+    Finally, we must consider potential misuse. We will include disclaimers and guidelines in any released software, clarifying that the tool is for research and personal well-being, not for high-stakes decisions. We will adhere to institutional review and legal guidelines for biometric data. In summary, ethical deployment of contactless GSR monitoring demands rigorous consent, data security, fairness checks, and possibly privacy-enhancing technologies:contentReference[oaicite:37]{index=37}:contentReference[oaicite:38]{index=38}.
+
+
+    \section{Industry Demand and Market Trends}
+    Market trends strongly favor contactless and remote monitoring technologies. The global Remote Patient Monitoring (RPM) market, which includes contactless vitals sensing, was \$39.5B in 2023 and is projected to reach \$77.9B by 2029 (CAGR ~12\%):contentReference[oaicite:39]{index=39}. This growth is driven by chronic disease prevalence, aging populations, and telehealth adoption post-COVID-19:contentReference[oaicite:40]{index=40}. Within this, a recent industry report estimates the contactless health monitors segment (encompassing devices that use infrared, radar, or video to record vital signs) at \$4B in 2024, growing to \$15B by 2033 (CAGR ~15\%):contentReference[oaicite:41]{index=41}. Hospitals, clinics, and home users are increasingly investing in smart sensing systems that minimize patient contact for infection control and convenience.
+
+    Furthermore, there is rising demand for AI-enhanced monitoring: integrating computer vision into patient care is considered a key trend:contentReference[oaicite:42]{index=42}. Regulatory moves (e.g. new CPT codes in the U.S. for remote physiologic monitoring) are lowering barriers for reimbursement of such services:contentReference[oaicite:43]{index=43}. The industry also sees a push for less invasive monitoring (e.g. smart patches, camera monitors) to improve patient compliance. Our project aligns with these trends: a camera-based GSR predictor would complement devices like remote ECG and temperature scanners. By demonstrating feasibility, we position ourselves at the intersection of healthcare innovation and market need. The projected ROI for contactless monitors (due to factors like infection control and continuous care) suggests strong interest from both healthcare providers and consumer electronics companies. In summary, the escalating investment in telehealth and remote monitoring indicates an opportune time for developing contactless GSR technology:contentReference[oaicite:44]{index=44}:contentReference[oaicite:45]{index=45}.
+
+
+    \section{Future Work}
+    Beyond the scope of this proposal, several extensions are envisioned. First, we plan to refine and expand the model by incorporating other modalities (e.g. thermal patterns over the body, audio signals of breathing). Real-world robustness (outdoor lighting, occlusions) can be improved via data augmentation and advanced models (e.g. transformer networks for video). A long-term goal is a mobile implementation: modern smartphones often have front RGB cameras and attachable thermal sensors, enabling a portable stress-monitoring app. This would require optimizing the algorithm for low-power hardware and implementing on-device processing.
+
+    We also foresee integrating our GSR predictor into multi-factor emotion recognition systems (combining facial expression analysis, speech emotion, and physiology). Federated or on-device learning could allow continuous personalization of the model to a user’s baseline. From a research perspective, further study of the physiological underpinnings is warranted: for instance, analyzing which facial regions most contribute to predicted GSR could yield insight into human autonomic expression. Finally, large-scale deployment would demand standardization and regulatory compliance; thus future work would include working with clinicians to define clinical-grade validation protocols and collaborating on standards for contactless biosensing.
+
+    \begin{thebibliography}{99}
+        \bibitem{Jo2021} G. Jo, S. Lee, and E. C. Lee, ``A Study on the Possibility of Measuring the Non-contact Galvanic Skin Response Based on Near-Infrared Imaging,'' in \emph{Int. Conf. Intelligent Human Computer Interaction (IHCI)}, 2021, pp. 110--119.
+        \bibitem{Tagnithammou2021} T. Tagnithammou, E. Monacelli, A. Ferszterowski, and L. Trénor, ``Emotional State Detection on Mobility Vehicle Using Camera: Feasibility and Evaluation Study,'' \emph{Proc. Int. Symp. Affective Comput. Intell. Interact. (ACII)}, 2021.
+        \bibitem{Gioia2021} F. Gioia, M. A. Pascali, A. Greco, S. Colantonio, and E. P. Scilingo, ``Discriminating Stress From Cognitive Load Using Contactless Thermal Imaging Devices,'' in \emph{IEEE EMBC}, 2021, pp. 608--611.
+        \bibitem{Nechyporenko2024} A. Nechyporenko \emph{et al.}, ``Galvanic Skin Response and Photoplethysmography for Stress Recognition Using Machine Learning and Wearable Sensors,'' \emph{Appl. Sci.}, vol. 14, no. 24, Art. no. 11997, 2024.
+        \bibitem{AlNafjan2023} A. Al-Nafjan and M. Aldayel, ``Anxiety Detection System Based on Galvanic Skin Response Signals,'' \emph{Appl. Sci.}, vol. 14, no. 23, Art. no. 10788, 2023.
+        \bibitem{Huang2023} B. Huang \emph{et al.}, ``Challenges and Prospects of Visual Contactless Physiological Monitoring in Clinical Study,'' \emph{npj Digit. Med.}, vol. 6, Article 231, 2023.
+        \bibitem{Chen2024} W. Chen \emph{et al.}, ``Deep Learning and Remote Photoplethysmography Powered Advancements in Contactless Physiological Measurement,'' \emph{Front. Med.}, vol. 11, 2024.
+        \bibitem{BusinessResearch2025} \emph{Contactless Health Monitors Market Size, Share, Growth, and Industry Analysis, 2024--2033}, Business Research Insights, Jun. 2, 2025. [Online]. Available: \url{https://www.businessresearchinsights.com}
+        \bibitem{BusinessWire2024} ResearchAndMarkets, ``Remote Patient Monitoring Market Insights 2024-2029,'' \emph{Business Wire}, Nov. 28, 2024. [Online]. Available: \url{https://www.businesswire.com}
+    \end{thebibliography}
+
+\end{document}
