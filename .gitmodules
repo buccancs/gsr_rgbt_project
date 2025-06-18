@@ -1,0 +1,9 @@
+[submodule "third_party/neurokit2"]
+	path = third_party/neurokit2
+	url = https://github.com/neuropsychology/NeuroKit.git
+[submodule "third_party/physiokit"]
+	path = third_party/physiokit
+	url = https://github.com/PhysiologicAILab/PhysioKit.git
+[submodule "third_party/pyshimmer"]
+	path = third_party/pyshimmer
+	url = https://github.com/seemoo-lab/pyshimmer.git
