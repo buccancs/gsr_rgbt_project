@@ -1,0 +1,129 @@
+\documentclass[12pt]{article}
+
+% --- UNIFIED FORMATTING PREAMBLE ---
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{amssymb}
+\usepackage{tabularx}
+\usepackage{textcomp} % For the checkbox symbol
+
+% Hyperlink setup
+\hypersetup{colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue}
+
+% Heading format
+% \titleformat{\section}{\large\bfseries}{\thesection.}{1em}{}
+% \titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{1em}{}
+
+% List format
+\setlist[itemize]{leftmargin=*}
+
+% Custom commands
+\newcommand{\checkbox}{$\square$}
+% --- END OF PREAMBLE ---
+
+\begin{document}
+
+\begin{center}
+    {\Large\bfseries\large\bfseries Consent Form for Participants}\\[2ex]
+\end{center}
+
+\noindent
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+    \textbf{Title of Study:} & Sensing Galvanic Skin Response (GSR) using Contact and Contactless Methods \\
+    \textbf{Department:} & University College London Interaction Centre \\
+    \textbf{Researcher:} & Duy An Tran (\href{mailto:an.tran.20@ucl.ac.uk}{an.tran.20@ucl.ac.uk}) \\
+    \textbf{Principal Investigator:} & Prof. Youngjun Cho (\href{mailto:youngjun.cho@ucl.ac.uk}{youngjun.cho@ucl.ac.uk}) \\
+    \textbf{UCL Data Protection Officer:} & Alexandra Potts (\href{mailto:data-protection@ucl.ac.uk}{data-protection@ucl.ac.uk})
+\end{tabularx}
+
+\bigskip
+\hrule
+\bigskip
+
+\noindent
+This study has been approved by the UCL Research Ethics Committee.
+\\ Ethics ID: [UCLIC\_1920\_006\_Staff\_Cho] \\[1ex]
+Thank you for considering taking part in this research. The person organising the research must explain the project to you before you agree to take part. If you have any questions arising from the Information Sheet or explanation already given to you, please ask the researcher before you decide whether to take part.
+\\[2ex]
+\noindent I confirm that I understand that by choosing ‘Yes’ in any box below I am consenting to that element of the study. I understand that it will be assumed that unchecked boxes mean that I DO NOT consent to that part of the study.
+
+\bigskip
+
+\renewcommand{\arraystretch}{2.5}
+\noindent
+\begin{tabularx}{\textwidth}{|X|c|}
+    \hline
+    \textbf{} & \textbf{Yes} \\
+    \hline
+    I confirm that I have read and understood the Information Sheet for the above study. I have had an opportunity to consider the information and what will be expected of me. I have also had the opportunity to ask questions which have been answered to my satisfaction. & \checkbox \\
+    \hline
+    I confirm that I am at least 18 years old. & \checkbox \\
+    \hline
+    I consent to participate in the study. I understand that the collected data (video of my palm, physiological sensor data, demographic data) will be used for the research purposes explained to me. & \checkbox \\
+    \hline
+    I understand that my participation is voluntary and that I am free to withdraw at any time. I understand that I can also withdraw data I have provided, up to 2 days after the last data I submitted, without giving a reason. & \checkbox \\
+    \hline
+    I am aware of who I should contact if I wish to lodge a complaint. & \checkbox \\
+    \hline
+    I understand that all data collected will be kept confidential and stored securely. & \checkbox \\
+    \hline
+\end{tabularx}
+\renewcommand{\arraystretch}{1}
+
+\bigskip
+
+\noindent Please indicate your consent for the use of your data in research outputs below.
+
+\bigskip
+
+\renewcommand{\arraystretch}{2.5}
+\noindent
+\begin{tabularx}{\textwidth}{|X|c|}
+    \hline
+    \textbf{} & \textbf{Yes}  \\
+    \hline
+    I agree for my anonymised data (physiological sensor data and demographic data) to be made open to the wider research community to support future research. & \checkbox \\
+    \hline
+    I agree for representative images derived from the video of my palm to be included in academic publications and presentations to illustrate the research methodology. I understand that I cannot be personally identified from these images. & \checkbox \\
+    \hline
+\end{tabularx}
+\renewcommand{\arraystretch}{1}
+
+\vspace{2ex}
+\noindent
+If you would like us to contact you in the future to invite you to participate in follow up studies to this project, or in future studies of a similar nature, please specify in the appropriate box below.
+
+\bigskip
+
+\renewcommand{\arraystretch}{1.5}
+\noindent
+\begin{tabularx}{\textwidth}{|X|c|}
+    \hline
+    I would be happy to be contacted in this way. & Yes/No \\
+    \hline
+    Preferred contact details (if yes): & \\
+    \hline
+\end{tabularx}
+\renewcommand{\arraystretch}{1}
+
+\vspace*{4cm} % Pushes the signature block down the page
+
+% --- UPDATED SIGNATURE BLOCK ---
+% Uses a 'tabular' environment with defined widths ('p{width}') to control spacing.
+\noindent
+\begin{tabular}{p{0.4\textwidth} p{0.2\textwidth} p{0.33\textwidth}}
+\textbf{Participant} \hrulefill & \textbf{Date} \hrulefill & \textbf{Signature} \hrulefill \\
+\end{tabular}
+
+\bigskip
+\bigskip
+\bigskip
+
+\noindent
+\begin{tabular}{p{0.4\textwidth} p{0.2\textwidth} p{0.33\textwidth}}
+\textbf{Researcher} \hrulefill & \textbf{Date} \hrulefill & \textbf{Signature} \hrulefill \\
+\end{tabular}
+
+\end{document}

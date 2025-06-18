@@ -1,0 +1,106 @@
+\documentclass[12pt]{article}
+
+% --- UNIFIED FORMATTING PREAMBLE ---
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{amssymb}
+\usepackage{tabularx}
+\usepackage{textcomp} % For the checkbox symbol
+
+% Hyperlink setup
+\hypersetup{colorlinks=true, urlcolor=blue, linkcolor=blue, citecolor=blue}
+
+% Heading format
+\titleformat{\section}{\large\bfseries}{\thesection.}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{1em}{}
+
+% List format
+\setlist[itemize]{leftmargin=*}
+
+% Custom commands
+\newcommand{\checkbox}{$\square$}
+% --- END OF PREAMBLE ---
+
+\begin{document}
+
+\begin{center}
+  {\Large\bfseries Information Sheet for Participants}\\[2ex]
+  {\bfseries Sensing Galvanic Skin Response (GSR) using Contact and Contactless Methods}\\[1ex]
+  {\small Principal Investigator: Prof. Youngjun Cho \quad \quad Researcher: Duy An Tran}
+\end{center}
+
+\bigskip
+\bigskip
+
+\section{Invitation}
+You are invited to take part in a research study. Before you decide whether to take part, it is important for you to understand why the research is being done and what it will involve. Please take the time to read this information carefully.
+
+\section{What is the project's purpose?}
+The project aims to develop a novel method to sense physiological signals without physical contact. Specifically, we want to predict a person's Galvanic Skin Response (GSR)—a key indicator of emotional arousal and stress—by analysing video of their palm using RGB (normal) and thermal cameras. This research will help create new technologies for monitoring well-being in a comfortable and unobtrusive way.
+
+\section{Why have I been chosen?}
+We are inviting anyone who is at least 18 years of age and able to consent to volunteer for this study.
+
+\section{Do I have to take part?}
+Participation is completely voluntary. If you decide to take part, you will be asked to sign a consent form. You can withdraw from the study at any time, or withdraw your data up to two days after the session, without giving a reason and without any penalty.
+
+\section{What will happen to me if I take part?}
+The session will last approximately 30-40 minutes. You will be asked to wear a couple of finger sensors and rest your hand in front of a camera setup while completing a series of tasks.
+
+\newpage
+\subsection{Physiological Sensors and Recordings}
+You will be asked to use sensors and/or software applications that will capture and record your physiological signals (e.g. respiration, sweat, and heart rate) and images (color and thermal images). The researcher may need to help you put on some of these sensors which may require physical contact. You will also be asked for your permission to record you using thermal cameras and regular webcam video. You will be asked in advance and ask if you feel comfortable with this. 
+\\
+\\
+If you do not feel comfortable, you can decide to withdraw from the study without giving an explanation or be penalized. Data will be processed and pseudonymised in a GDPR compliant local server.
+\\
+\\
+No sensors will be worn under clothes. We will ask you to wear two small sensors on your fingers to record:
+\begin{itemize}
+    \item \textbf{Galvanic Skin Response (GSR):} To measure skin conductance as a ground-truth measurement of sympathetic activation.
+    \item \textbf{Photoplethysmography (PPG):} To measure heart rate signals.
+\end{itemize}
+At the same time, we will place a standard RGB camera and a thermal camera pointing at the palm of your hand. These cameras will record a video of your palm throughout the session.
+
+\subsection{Experimental Tasks}
+The session is structured as follows:
+
+\bigskip
+
+\noindent
+\begin{tabularx}{\textwidth}{@{} >{\bfseries}l l X @{}}
+    \hline \\[-1.5ex]
+    \textbf{General Step} & \textbf{Duration} & \textbf{Description} \\ 
+    \hline \\[-1.5ex]
+    Setup & Approx. 5 mins & The researcher will explain the study, attach the finger sensors, and set up the cameras. \\
+    Baseline & 5 minutes & You will be asked to sit and rest quietly to establish a baseline reading. \\
+    Main Tasks & Approx. 15-20 mins & You will be presented with several tasks on a screen. These may include controlled breathing exercises, cognitive tasks, or viewing emotional videos. Each task is separated by a short rest period. \\
+    Final Recovery & 2-3 minutes & The session will end with a final rest period and a brief debriefing. \\
+    \hline
+\end{tabularx}
+
+\bigskip
+\bigskip
+
+\section{How will my data be used?}
+All data collected during this study will be kept confidential and used for research purposes only. 
+\begin{itemize}
+    \item \textbf{Anonymised Data for Open Science:} With your permission, the anonymised numerical data from the sensors (GSR and PPG signals) and demographic data may be shared with the wider research community to support future scientific research.
+    \item \textbf{Use of Images in Publications:} To explain our methods, we may use representative images (i.e., figures or illustrations derived from the palm video) in academic publications and presentations. The raw video files will not be made publicly accessible. As the videos are only of your palm, \textbf{you will not be personally identifiable} from any of these images.
+\end{itemize}
+
+\section{What are the possible benefits of taking part?}
+There are no immediate benefits to you. However, your participation will help advance technology for health and well-being monitoring, with potential applications in telehealth, education, and workplace wellness.
+
+\section{What if something goes wrong?}
+If you have any concerns, please contact the Principal Investigator, Prof. Youngjun Cho (\href{mailto:youngjun.cho@ucl.ac.uk}{youngjun.cho@ucl.ac.uk}). If you are not satisfied with the response, you can contact the Chair of the UCL Research Ethics Committee (\href{mailto:ethics@ucl.ac.uk}{ethics@ucl.ac.uk}).
+
+\section{Data Protection and Confidentiality}
+Your participation will be kept confidential. All data will be stored on secure, encrypted devices. The legal basis for processing your data is the `performance of a task in the public interest`. For more details, you may consult UCL's General Research Participant Privacy Notice.
+
+\vspace{50pt}
+\noindent\textbf{Thank you for considering taking part in this research.}
+
+\end{document}

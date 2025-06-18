@@ -1,10 +1,16 @@
+\documentclass{article}
+\usepackage{amsmath,graphicx, algorithm, algorithmic, subscript}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+\begin{document}
+
 \section{Task Selection and Purpose}
-The experimental tasks were chosen to elicit distinct physiological and emotional states, aligning with the goal of modeling GSR from facial cues:
+The experimental tasks were chosen to elicit distinct physiological and emotional states, aligning to model GSR from facial cues:
 \begin{itemize}
-    \item \textbf{Baseline (Rest)} -- A 5-minute neutral rest period provides a personalized physiological baseline for each participant. By recording GSR and facial video with minimal stimuli, we can normalize subsequent responses and distinguish task effects from individual differences.
+    \item \textbf{Baseline (Rest)} -- A 5-minute neutral rest period provides a personalised physiological baseline for each participant. By recording GSR and facial video with minimal stimuli, we can normalise subsequent responses and distinguish task effects from individual differences.
     \item \textbf{Math Stressor (Cognitive Stress)} -- The mental arithmetic task is a well-known stress induction method. It reliably increases sympathetic arousal, raising GSR, while the subject’s face may show signs of concentration (e.g., subtle facial muscle tension). This task is included to capture how cognitive stress correlates with both RGB and thermal facial signals.
-    \item \textbf{Relaxation (Recovery)} -- Interleaving a relaxation period (guided breathing or calm video) allows the participant’s physiology to return toward baseline after stress. Modeling requires examples of both rising and falling GSR. The relaxation task helps the model learn recovery dynamics and tests that observed changes are due to the stressor, not sensor drift.
-    \item \textbf{Emotional Video (Affective Response)} -- An emotionally charged video clip (positive or negative content) evokes affective arousal distinct from cognitive stress. Facial expressions and thermal patterns can reflect emotion-driven perspiration changes. This task ensures the model covers a range of GSR-inducing conditions (stress vs. emotion) and helps generalize the predictor to real-world scenarios.
+    \item \textbf{Relaxation (Recovery)} -- Interleaving a relaxation period (guided breathing or calm video) allows the participant’s physiology to return toward baseline after stress. Modelling requires examples of both rising and falling GSR. The relaxation task helps the model learn recovery dynamics and tests whether observed changes are due to the stressor, not sensor drift.
+    \item \textbf{Emotional Video (Affective Response)} -- An emotionally charged video clip (positive or negative content) evokes affective arousal distinct from cognitive stress. Facial expressions and thermal patterns can reflect emotion-driven perspiration changes. This task ensures the model covers a range of GSR-inducing conditions (stress vs. emotion) and helps generalise the predictor to real-world scenarios.
 \end{itemize}
 \begin{figure}[h]
     \centering
@@ -14,12 +20,12 @@ The experimental tasks were chosen to elicit distinct physiological and emotiona
 
 
 \section{Equipment and Setup Justification}
-The setup design is optimized for capturing relevant signals reliably:
+The setup design is optimised for capturing relevant signals reliably:
 \begin{itemize}
-    \item \textbf{Camera Angles:} Both RGB and thermal cameras are positioned directly in front of the participant to maximize unobstructed facial views. A slight downward tilt may be used to center the face. This frontal angle captures facial blood perfusion (for rPPG) and forehead/nasal-periorbital regions (for thermal) without distortion.
-    \item \textbf{Lighting:} For the RGB camera, uniform diffuse lighting (e.g., LED panels) is used to minimize shadows and specular highlights, which can interfere with color-based analysis. The lighting level is kept constant across sessions. The thermal camera requires no visible light; however, ambient temperature is controlled (e.g., 22°C) to ensure consistent heat measurements.
+    \item \textbf{Camera Angles:} Both RGB and thermal cameras are positioned directly in front of the participant to maximise unobstructed facial views. A slight downward tilt may be used to centre the face. This frontal angle captures facial blood perfusion (for rPPG) and forehead/nasal-periorbital regions (for thermal) without distortion.
+    \item \textbf{Lighting:} For the RGB camera, uniform diffuse lighting (e.g., LED panels) is used to minimise shadows and specular highlights, which can interfere with colour-based analysis. The lighting level is kept constant across sessions. The thermal camera requires no visible light; however, ambient temperature is controlled (e.g., 22°C) to ensure consistent heat measurements.
     \item \textbf{Sensor Placement:} Shimmer and PhysioKit GSR sensors are placed on palmar finger surfaces because these areas have high sweat gland density. We attach them to different hands to avoid interfering with each other and to distribute workload (dominant vs. non-dominant hand). This redundancy guards against single-sensor failure and allows cross-validation of GSR signals.
-    \item \textbf{Environment Controls:} The recording room is quiet, with stable climate (temperature and humidity) to prevent environmental fluctuations from affecting sensors. We remove background stimuli (walls plain, no posters) so that the only video input is the planned stimuli. Participants are asked to remove glasses, hats, or heavy makeup that could reflect light or insulate heat.
+    \item \textbf{Environment Controls:} The recording room is quiet, with stable climate (temperature and humidity) to prevent environmental fluctuations from affecting sensors. We remove background stimuli (plain walls, no posters) so that the only video input is the planned stimuli. Participants are asked to remove glasses, hats, or heavy makeup that could reflect light or insulate heat.
 \end{itemize}
 
 
@@ -28,38 +34,39 @@ Ensuring equitable data collection across skin tones is a priority:
 \begin{itemize}
     \item \textbf{Diverse Recruitment:} We plan to recruit participants representing a range of Fitzpatrick skin types. This diversity allows the model to learn from varied appearances and permits evaluation of any performance disparity after training.
     \item \textbf{Thermal Imaging Benefits:} Thermal infrared measurements capture heat emissions directly and are largely independent of visible skin pigmentation. By including thermal data, we aim to mitigate biases inherent in visible-light features (where darker skin can reduce signal quality).
-    \item \textbf{Normalization Procedures:} During data preprocessing, we will inspect and equalize signal characteristics (e.g., image brightness, facial temperature baseline) across groups. If systematic differences emerge, group-specific normalization or augmentation will be employed.
+    \item \textbf{Normalisation Procedures:} During data preprocessing, we will inspect and equalise signal characteristics (e.g., image brightness, facial temperature baseline) across groups. If systematic differences emerge, group-specific normalisation or augmentation will be employed.
     \item \textbf{Documentation:} We log each participant’s self-reported race/ethnicity and skin tone category. This metadata is used post hoc to check that model errors do not disproportionately affect any group.
 \end{itemize}
 
 
-\section{Synchronization Strategy and Reliability}
-Robust synchronization is crucial for matching GSR samples to video frames:
+\section{Synchronisation Strategy and Reliability}
+Robust synchronisation is crucial for matching GSR samples to video frames:
 \begin{itemize}
     \item \textbf{Primary Sync (Software):} Where possible, devices share a common clock (e.g., all connected to the same computer) so that GSR streams and video frames have consistent timestamps. PhysioKit’s software and Shimmer’s API both support timestamped data logging.
-    \item \textbf{Redundant Markers:} We use an LED flash at the session start, which produces a spike in video luminance (and slight thermal change) simultaneously visible in RGB and IR. An audible clap or beep is also recorded by the cameras’ microphone and may induce a tiny GSR response, providing a cross-check.
-    \item \textbf{Fallback Mechanisms:} If wireless connections fail, Shimmer stores data on onboard SD cards for later retrieval. We then align data offline using the recorded event markers. Experimenters keep a synced stopwatch and note real times of task events as an extra reference.
+    \item \textbf{Redundant Markers:} We use an LED flash at the session start, which produces a spike in video luminance (and slight thermal change) simultaneously visible in RGB and IR. An audible clap or beep is also recorded by the camera’s microphone and may induce a tiny GSR response, providing a cross-check.
+    \item \textbf{Fallback Mechanisms:} If wireless connections fail, Shimmer stores data on onboard SD cards for later retrieval. We then align data offline using the recorded event markers. Experimenters keep a synced stopwatch and note the real times of task events as an extra reference.
     \item \textbf{Verification and Correction:} After data collection, we verify alignment by overlaying GSR peaks with video cues. Minor desynchronizations are corrected by shifting one time series. This ensures that every GSR waveform point is correctly paired with the corresponding video frame.
 \end{itemize}
 
 
 \section{Data Pipeline and Model Integration}
-Collected data directly feeds into the predictive modeling pipeline:
+Collected data directly feeds into the predictive modelling pipeline:
 \begin{itemize}
-    \item \textbf{Feature Extraction:} We will preprocess RGB video to extract facial regions and compute rPPG signals (color channel fluctuations) and expression features. Thermal frames will yield facial heat maps and temperature-derived features. These features form the input space for the model.
-    \item \textbf{Target Signal:} The continuous GSR waveforms from Shimmer (and PhysioKit) serve as ground truth targets. Synchronized GSR values (sampled at e.g. 32 Hz) are matched to corresponding video frame timestamps.
+    \item \textbf{Feature Extraction:} We will preprocess the RGB video to extract facial regions and compute rPPG signals (colour channel fluctuations) and expression features. Thermal frames will yield facial heat maps and temperature-derived features. These features form the input space for the model.
+    \item \textbf{Target Signal:} The continuous GSR waveforms from Shimmer (and PhysioKit) serve as ground truth targets. Synchronised GSR values (sampled at e.g. 32 Hz) are matched to corresponding video frame timestamps.
     \item \textbf{Model Training:} Using supervised learning, models (e.g., regression or neural networks) will be trained to map video-derived features to GSR values. We will include task labels as contextual input to help the model distinguish stress vs. relaxation contexts.
     \item \textbf{Fairness Validation:} The trained model’s performance will be evaluated separately on subsets of data (e.g., different skin tone groups). We will compute metrics such as RMSE and correlation for each group to ensure no significant disparity. If biases appear, we will consider re-weighting or data augmentation strategies.
-    \item \textbf{Scientific Alignment:} This protocol ensures the dataset has the necessary variation (cognitive stress vs. emotional arousal) to train a generalizable GSR predictor. By carefully documenting tasks and conditions, the modeling can directly test how visual cues relate to autonomic arousal.
+    \item \textbf{Scientific Alignment:} This protocol ensures the dataset has the necessary variation (cognitive stress vs. emotional arousal) to train a generalizable GSR predictor. By carefully documenting tasks and conditions, the modelling can directly test how visual cues relate to autonomic arousal.
 \end{itemize}
 
 
 \section{Anticipated Challenges and Mitigation Strategies}
 We anticipate several potential challenges and plan to address them:
 \begin{itemize}
-    \item \textbf{Subject Movement:} Even small head or hand movements can disturb video tracking. We instruct participants to minimize motion and consider using a chinrest. In analysis, we will detect and possibly exclude frames with excessive motion blur.
+    \item \textbf{Subject Movement:} Even small head or hand movements can disturb video tracking. We instruct participants to minimise motion and consider using a chinrest. In analysis, we will detect and possibly exclude frames with excessive motion blur.
     \item \textbf{Sensor Dropouts:} Wireless GSR sensors may temporarily lose connection. Using two independent GSR systems provides a backup. We will also monitor signals in real time and recalibrate or reattach sensors if noise is detected.
     \item \textbf{Lighting Variability:} Fluctuations in ambient light can affect RGB data. We control the room lighting and avoid sunlight. Tests are conducted to ensure no flicker from artificial lights at the camera frame rate.
     \item \textbf{Emotional Responsivity:} Individuals vary in emotional reactivity, so not all participants may show strong GSR changes to the same stimuli. We will collect subjective stress/arousal ratings (optional) to interpret the data. Our sample size planning accounts for variability.
     \item \textbf{Data Volume and Management:} Multimodal recordings generate large files. We will follow the naming and folder conventions strictly and perform real-time data backups after each session to prevent loss.
 \end{itemize}
+\end{document}

@@ -1,9 +1,11 @@
 \documentclass{article}
-\usepackage{amsmath,graphicx,algorithm,algorithmic}
+\usepackage{amsmath,graphicx, algorithm, algorithmic}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
 \begin{document}
     \section{Project Background}
 
-    The GSR-RGBT project integrates Galvanic Skin Response (GSR) measurements with combined RGB (visible light) and thermal imaging to create a rich multimodal sensing platform. This cross-disciplinary system leverages physiological signals and environmental imaging, enabling new research in areas like human-computer interaction, affective computing, and security. GSR sensors measure the electrical conductance of the skin, which correlates with sympathetic nervous system activity and emotion.
+    The GSR-RGBT project integrates Galvanic Skin Response (GSR) measurements with combined RGB (visible light) and thermal imaging to create a rich multimodal sensing platform. This cross-disciplinary system leverages physiological signals and environmental imaging, enabling new research in human-computer interaction, affective computing, and security. GSR sensors measure the electrical conductance of the skin, which correlates with sympathetic nervous system activity and emotion.
 
 
     \section{Motivation}
@@ -12,11 +14,11 @@
 
     \begin{itemize}
         \item \textbf{Robustness:} Thermal imaging ensures visibility in poor lighting or occlusion, complementing RGB data. GSR adds internal user state for context-aware responses.
-        \item \textbf{Enhanced Analysis:} Fusion of physiological and visual data enables richer analysis; for instance, a robot can adjust its behavior not only based on scene content but also on human stress levels.
+        \item \textbf{Enhanced Analysis:} Fusion of physiological and visual data enables richer analysis; for instance, a robot can adjust its behaviour not only based on scene content but also on human stress levels.
         \item \textbf{Novel Applications:} Use cases include detecting nervousness in security checkpoints, monitoring patient responses in medical settings, or adaptive gaming/environments based on player arousal.
     \end{itemize}
 
-    The multidisciplinary nature of this project aims to push the state-of-the-art in multisensory integration, building on existing research in biosignal processing and computer vision~\cite{RefBackground}.
+    The multidisciplinary nature of this project aims to push the state-of-the-art in multisensory integration, building on existing research in biosignal processing and computer vision.
 
 
     \section{Setup Instructions}
@@ -215,7 +217,7 @@ feature_vector = [object_confidence, thermal_max_temp, gsr_level]
     \begin{itemize}
         \item \textbf{Asynchronous Capture and Processing:} Run capture and processing in parallel (e.g., separate threads). Use thread-safe queues for frame buffering.
         \item \textbf{Buffering:} Use circular buffers or queues to store incoming frames without loss.
-        \item \textbf{Efficient Algorithms:} Use optimized libraries and reduce computation (e.g., process every _n_th frame if needed).
+        \item \textbf{Efficient Algorithms:} Use optimised libraries and reduce computation (e.g., process every \textsubscript{n}th frame if needed).
         \item \textbf{Resource Management:} Assign threads to CPU cores or use GPU acceleration. Profile to find bottlenecks.
     \end{itemize}
     A pseudocode example for a multithreaded pipeline is shown below.
@@ -228,12 +230,12 @@ feature_vector = [object_confidence, thermal_max_temp, gsr_level]
             \STATE enqueue(frame)
             \STATE \textbf{if} queue is not empty \textbf{then}
             \STATE \quad frame = dequeue()
-            \STATE \quad process\_frame(frame)  \Comment{includes thermal and GSR fusion}
+            \STATE \quad process\_frame(frame)  \COMMENT{includes thermal and GSR fusion}
             \ENDWHILE
         \end{algorithmic}
     \end{algorithm}
 
-    Use profiling and hardware-specific optimization (e.g., CUDA) to further improve latency.
+    Use profiling and hardware-specific optimisation (e.g., CUDA) to improve latency further.
 
 
     \section{Data Collection Forms}
@@ -260,7 +262,7 @@ timestamp, rgb_frame_id, thermal_frame_id, gsr_value, detected_object, temperatu
         \item \textbf{Synchronization Drift:} Use hardware triggers or synchronize clocks. Log timestamps to diagnose misalignment.
         \item \textbf{Calibration Misalignment:} Recalibrate with enough samples. Verify checkerboard detection in both cameras.
         \item \textbf{GSR Signal Issues:} Check sensor contact and connectivity. Filter noise and verify serial communication settings.
-        \item \textbf{Performance Bottleneck:} Profile the system. Optimize slow parts (e.g., model inference or disk I/O).
+        \item \textbf{Performance Bottleneck:} Profile the system. Optimise slow parts (e.g., model inference or disk I/O).
         \item \textbf{Unexpected Crashes:} Run modules in isolation to find the error source. Handle exceptions and check memory usage.
     \end{itemize}
     Keep a log of all errors and solutions for future reference.
@@ -270,7 +272,7 @@ timestamp, rgb_frame_id, thermal_frame_id, gsr_value, detected_object, temperatu
 
     When writing a paper or thesis on this project:
     \begin{itemize}
-        \item \textbf{Clear Motivation and Contributions:} Emphasize the novelty of combining GSR with RGB and thermal sensors.
+        \item \textbf{Clear Motivation and Contributions:} Emphasise the novelty of combining GSR with RGB and thermal sensors.
         \item \textbf{Literature Review:} Cite relevant work on multimodal sensing and context-aware systems.
         \item \textbf{Clarity of Presentation:} Include diagrams of the system architecture and example results. Use meaningful captions.
         \item \textbf{Methodology Detail:} Describe data collection and algorithms in detail~\cite{RefMethodology} (refer to earlier sections).
@@ -286,10 +288,11 @@ timestamp, rgb_frame_id, thermal_frame_id, gsr_value, detected_object, temperatu
     \begin{itemize}
         \item \textbf{Advanced Fusion:} Develop neural models that jointly learn from images and GSR data.
         \item \textbf{Additional Sensors:} Incorporate other modalities (e.g., depth cameras, audio) for richer context.
-        \item \textbf{Embedded Systems:} Optimize the pipeline for embedded or mobile platforms.
+        \item \textbf{Embedded Systems:} Optimise the pipeline for embedded or mobile platforms.
         \item \textbf{Longitudinal Studies:} Use the system for extended user studies (e.g., stress monitoring).
         \item \textbf{Real-World Deployment:} Collaborate with domain experts to apply the system in healthcare, security, etc.
     \end{itemize}
     These extensions can build upon the project to enhance scalability and applicability.
 
+\bibliography{references}
 \end{document}

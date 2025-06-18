@@ -1,9 +1,15 @@
+\documentclass{article}
+\usepackage{amsmath,graphicx, algorithm, algorithmic}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+\begin{document}
+
 \section{Participant Handling}
 \begin{itemize}
     \item \textbf{Recruitment and Consent:} Recruit adult participants with normal or corrected vision and no skin conditions. Explain the study purpose, obtain informed consent, and collect demographic information (age, gender, skin tone).
     \item \textbf{Preparation:} Allow participants to acclimate to the room for 5 minutes before starting. Clean the skin on the hands where GSR electrodes will be applied.
     \item \textbf{Electrode Attachment:} Attach the Shimmer GSR sensor electrodes to two adjacent fingertips (e.g., index and middle finger of the left hand) using conductive gel. Attach the PhysioKit GSR sensor to two fingertips of the right hand. Ensure secure contact and verify signal quality.
-    \item \textbf{Seating and Comfort:} Seat the participant in front of the cameras at a fixed distance (approximately 1.0–1.5 meters). Adjust chair and camera height so the participant’s face is centered. Instruct the participant to remain as still as possible.
+    \item \textbf{Seating and Comfort:} Seat the participant in front of the cameras at a fixed distance (approximately 1.0–1.5 meters). Adjust chair and camera height so the participant’s face is centred. Instruct the participant to remain as still as possible.
     \item \textbf{Instructions:} Verbally explain the task sequence and allow a brief practice if necessary. Remind participants to avoid speaking or unnecessary movements during tasks.
 \end{itemize}
 
@@ -17,7 +23,7 @@ The session consists of the following tasks in sequence:
     \item \textbf{Relaxation (Recovery):} 5 minutes of guided deep breathing or viewing a calming nature video to induce physiological relaxation and allow GSR to return towards baseline.
     \item \textbf{Inter-Task Rest:} 1 minute of rest after the relaxation period.
     \item \textbf{Emotional Video (Affective Stimulus):} 3-minute emotionally arousing video clip (e.g., suspenseful or joyful scenes) to elicit an emotional response.
-    \item \textbf{Final Rest:} 2 minutes of rest after the video to capture recovery phase.
+    \item \textbf{Final Rest:} 2 minutes of rest after the video to capture the recovery phase.
 \end{itemize}
 
 \begin{table}[h]
@@ -56,9 +62,9 @@ The session consists of the following tasks in sequence:
 
 
 \section{Synchronization Strategy}
-Accurate synchronization of video and GSR data streams is achieved by multiple methods:
+Accurate synchronisation of video and GSR data streams is achieved by multiple methods:
 \begin{itemize}
-    \item \textbf{Timestamp Alignment:} Use the acquisition computer’s clock to timestamp both video frames and GSR samples. Whenever possible, connect devices to the same host or synchronize their clocks (e.g., via NTP).
+    \item \textbf{Timestamp Alignment:} Use the acquisition computer’s clock to timestamp both video frames and GSR samples. Whenever possible, connect devices to the same host or synchronise their clocks (e.g., via NTP).
     \item \textbf{Visual Marker:} At the start of recording, a bright LED flash is triggered and captured by both RGB and thermal cameras. This creates a sharp, simultaneous frame marker in the video data.
     \item \textbf{Audio/Physical Cue:} The participant or experimenter produces a hand clap or button click at the start and end of certain tasks. The clap sound (if the camera has a microphone) and any small motion artifact in the GSR create additional sync points across modalities.
     \item \textbf{Event Logging:} Use the experiment control software (or PhysioKit interface) to insert event markers (e.g., “Task Start”, “Task End”) into the data log. Manually note any irregular events or delays.
@@ -66,9 +72,9 @@ Accurate synchronization of video and GSR data streams is achieved by multiple m
 \end{itemize}
 
 
-\section{Data Labeling and Format}
+\section{Data Labelling and Format}
 \begin{itemize}
-    \item \textbf{Task Labels:} Each data file or segment is labeled with the corresponding task (e.g., \texttt{BASELINE}, \texttt{MATH}, \texttt{RELAX}, \texttt{VIDEO}). Annotate start and end times of tasks in a metadata file.
+    \item \textbf{Task Labels:} Each data file or segment is labelled with the corresponding task (e.g., \texttt{BASELINE}, \texttt{MATH}, \texttt{RELAX}, \texttt{VIDEO}). Annotate start and end times of tasks in a metadata file.
     \item \textbf{Data Files:} Save RGB and thermal video files in a lossless or high-quality format (e.g., MP4 with high bitrate, or image frame sequences). Save GSR data streams from each device as CSV or binary files with timestamps.
     \item \textbf{Metadata Logging:} Maintain a master metadata log (e.g., \texttt{session\_info.csv}) including Subject ID, session date/time, device IDs, sampling rates, and any calibration values. Record the event markers and any noted issues.
     \item \textbf{Quality Checks:} After each session, verify that data are recorded without dropouts. If any segment is missing or noisy, note this in the metadata and plan for re-recording if necessary.
@@ -82,3 +88,5 @@ Accurate synchronization of video and GSR data streams is achieved by multiple m
     \item \textbf{Metadata Files:} Place the session log (e.g., \texttt{S01\_session.csv}) in the subject’s main folder. Include columns: Task, StartTimestamp, EndTimestamp, SensorStatus, Notes.
     \item \textbf{Backup and Versioning:} Regularly back up data to a secure storage. Use version control (e.g., Git) for any processing scripts or annotation files.
 \end{itemize}
+
+\end{document}

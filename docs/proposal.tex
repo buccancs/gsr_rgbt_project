@@ -1,6 +1,7 @@
 \documentclass[12pt]{article}
 \usepackage{graphicx}
 \usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
 \title{\textbf{Contactless Prediction of Galvanic Skin Response (GSR) via RGB-Thermal Video: Technical Proposal and Impact Analysis}}
 \author{Department of Computer Science, University X}
 \date{\today}
@@ -9,7 +10,7 @@
     \maketitle
 
     \begin{abstract}
-        Contactless physiological monitoring is an emerging field that leverages computer vision to extract vital signals without physical sensors. This proposal presents a novel approach to predict Galvanic Skin Response (GSR) from synchronized RGB and thermal video. GSR (also known as electrodermal activity) reflects sympathetic nervous system arousal and is widely used in stress and emotion research:contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}. Traditionally GSR is measured via contact sensors on the skin, limiting long-term monitoring and user comfort. Recent advances in video-based sensing have enabled contactless estimation of heart rate, respiration, and other vitals:contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}, but GSR has received little attention:contentReference[oaicite:4]{index=4}. We propose to develop a machine learning system that takes aligned facial RGB-thermal video as input and outputs predicted GSR levels. The system will be validated with ground-truth GSR data under controlled emotional stimuli. In addition to the technical proposal, we analyze the scientific merit, practical impact, and societal implications of this work. Our contributions will include a new dataset of RGB-thermal face videos with GSR labels, baseline algorithms for contactless GSR estimation, and evaluations of feasibility in real-world scenarios. This proposal is structured as follows: after an introduction and project goals, we outline deliverables, discuss impact and applications, and address ethical/data governance issues, concluding with future work directions.
+        Contactless physiological monitoring is an emerging field that leverages computer vision to extract vital signals without physical sensors. This proposal presents a novel approach to predicting Galvanic Skin Response (GSR) from synchronised RGB and thermal video. GSR (also known as electrodermal activity) reflects sympathetic nervous system arousal and is widely used in stress and emotion research:contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}. Traditionally, GSR is measured via contact sensors on the skin, limiting long-term monitoring and user comfort. Recent advances in video-based sensing have enabled contactless estimation of heart rate, respiration, and other vitals:contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}, but GSR has received little attention:contentReference[oaicite:4]{index=4}. We propose to develop a machine learning system that takes aligned facial RGB-thermal video as input and outputs predicted GSR levels. The system will be validated with ground-truth GSR data under controlled emotional stimuli. In addition to the technical proposal, we analyze the scientific merit, practical impact, and societal implications of this work. Our contributions will include a new dataset of RGB-thermal face videos with GSR labels, baseline algorithms for contactless GSR estimation, and evaluations of feasibility in real-world scenarios. This proposal is structured as follows: after an introduction and project goals, we outline deliverables, discuss impact and applications, and address ethical/data governance issues, concluding with future work directions.
     \end{abstract}
 
     \tableofcontents
@@ -42,16 +43,16 @@
         \item \textbf{Documentation and Dissemination:} Document the methodology, code, and findings. We plan to release the dataset and code as an open resource for research reproducibility. Results will be prepared for publication in relevant journals/conferences.
     \end{itemize}
 
-    These goals will be pursued over a 1.5-year MRes timeline, with key milestones for data collection, algorithm training, system testing, and final reporting (detailed in the next section). By achieving these goals, we will demonstrate the feasibility of extracting GSR from video cues, opening a new modality for affective sensing and health monitoring.
+    These goals will be pursued, with key milestones for data collection, algorithm training, system testing, and final reporting (detailed in the next section). By achieving these goals, we will demonstrate the feasibility of extracting GSR from video cues, opening a new modality for affective sensing and health monitoring.
 
 
     \section{Proposed Deliverables (Milestone-based)}
     We structure the project into the following major deliverables, each with target completion dates:
     \begin{enumerate}
-        \item \textbf{Literature Review and Protocol Design (Months 1--3):} Conduct an in-depth review of contactless physiological sensing and emotion recognition methods. Finalize experimental protocols for stimuli presentation and data acquisition. Secure ethical approval and assemble equipment (RGB camera, thermal camera, GSR sensor).
-        \item \textbf{Data Collection (Months 4--6):} Recruit participants and record synchronized RGB-thermal face video along with GSR. We will induce stress or emotional arousal via validated tasks (e.g., mental arithmetic, startling stimuli) to produce GSR fluctuations. Target a dataset of at least 30 subjects under both resting and aroused conditions.
-        \item \textbf{Model Development (Months 7--12):} Preprocess the collected data to align frames and sensor timestamps. Extract ROI signals (e.g. mean pixel intensity over facial regions) in both RGB and thermal streams. Implement and train machine learning models (e.g. convolutional neural networks, recurrent nets) that map video-derived features to GSR values. Benchmark traditional regression versus deep learning fusion models.
-        \item \textbf{Prototype Implementation (Months 13--15):} Integrate the best-performing model into a prototype application. This will include a figure placeholder for the data pipeline:
+        \item \textbf{Literature Review and Protocol Design:} Conduct an in-depth review of contactless physiological sensing and emotion recognition methods. Finalize experimental protocols for stimuli presentation and data acquisition. Secure ethical approval and assemble equipment (RGB camera, thermal camera, GSR sensor).
+        \item \textbf{Data Collection:} Recruit participants and record synchronized RGB-thermal face video along with GSR. We will induce stress or emotional arousal via validated tasks (e.g., mental arithmetic, startling stimuli) to produce GSR fluctuations. Target a dataset of at least 30 subjects under both resting and aroused conditions.
+        \item \textbf{Model Development :} Preprocess the collected data to align frames and sensor timestamps. Extract ROI signals (e.g. mean pixel intensity over facial regions) in both RGB and thermal streams. Implement and train machine learning models (e.g. convolutional neural networks, recurrent nets) that map video-derived features to GSR values. Benchmark traditional regression versus deep learning fusion models.
+        \item \textbf{Prototype Implementation:} Integrate the best-performing model into a prototype application. This will include a figure placeholder for the data pipeline:
         \begin{figure}[ht]
             \centering
             \fbox{\parbox{0.8\textwidth}{\centering \emph{Figure:} Data processing pipeline (placeholder)}}
@@ -130,5 +131,4 @@
         \bibitem{BusinessResearch2025} \emph{Contactless Health Monitors Market Size, Share, Growth, and Industry Analysis, 2024--2033}, Business Research Insights, Jun. 2, 2025. [Online]. Available: \url{https://www.businessresearchinsights.com}
         \bibitem{BusinessWire2024} ResearchAndMarkets, ``Remote Patient Monitoring Market Insights 2024-2029,'' \emph{Business Wire}, Nov. 28, 2024. [Online]. Available: \url{https://www.businesswire.com}
     \end{thebibliography}
-
 \end{document}
