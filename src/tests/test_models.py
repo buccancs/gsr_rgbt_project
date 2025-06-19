@@ -4,13 +4,27 @@
 import sys
 import unittest
 from pathlib import Path
+import logging
 
-import tensorflow as tf
-
+# Add project root to path for absolute imports
 project_root = Path(__file__).resolve().parents[2]
 sys.path.append(str(project_root))
 
-from src.ml_models.models import build_lstm_model, build_ae_model, build_vae_model
+# Try to import TensorFlow, but don't fail if it's not available
+try:
+    import tensorflow as tf
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
+    TENSORFLOW_AVAILABLE = False
+    logging.warning("TensorFlow is not available. TensorFlow model tests will be skipped.")
+
+# Try to import the model builders, but don't fail if they depend on TensorFlow
+try:
+    from src.ml_models.models import build_lstm_model, build_ae_model, build_vae_model
+    MODELS_AVAILABLE = True
+except ImportError:
+    MODELS_AVAILABLE = False
+    logging.warning("TensorFlow model builders are not available. Tests will be skipped.")
 
 
 class TestModelCreation(unittest.TestCase):
@@ -26,6 +40,9 @@ class TestModelCreation(unittest.TestCase):
 
     def test_build_lstm_model(self):
         """Test that the LSTM model is created with correct I/O shapes and is compiled."""
+        if not TENSORFLOW_AVAILABLE or not MODELS_AVAILABLE:
+            self.skipTest("TensorFlow or model builders not available")
+
         model = build_lstm_model(self.input_shape)
 
         # Check if the model is a Keras Model instance
@@ -43,6 +60,9 @@ class TestModelCreation(unittest.TestCase):
 
     def test_build_ae_model(self):
         """Test that the Autoencoder model has an output shape that matches its input."""
+        if not TENSORFLOW_AVAILABLE or not MODELS_AVAILABLE:
+            self.skipTest("TensorFlow or model builders not available")
+
         latent_dim = 16
         model = build_ae_model(self.input_shape, latent_dim=latent_dim)
 
@@ -63,6 +83,9 @@ class TestModelCreation(unittest.TestCase):
 
     def test_build_vae_model(self):
         """Test that the VAE model has an output shape matching its input and a custom loss."""
+        if not TENSORFLOW_AVAILABLE or not MODELS_AVAILABLE:
+            self.skipTest("TensorFlow or model builders not available")
+
         latent_dim = 16
         model = build_vae_model(self.input_shape, latent_dim=latent_dim)
 

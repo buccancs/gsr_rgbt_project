@@ -37,14 +37,34 @@ def align_signals(gsr_df: pd.DataFrame, video_signals: pd.DataFrame) -> pd.DataF
     Aligns video-derived signals to the GSR signal timestamps.
 
     This function uses interpolation to create a unified DataFrame where each GSR 
-    timestamp has a corresponding set of video features.
+    timestamp has a corresponding set of video features. It supports both Cython 
+    and pure Python implementations for performance optimization.
+
+    The function handles exceptions gracefully and returns an empty DataFrame if 
+    any errors occur during the alignment process.
 
     Args:
         gsr_df (pd.DataFrame): DataFrame with GSR data and a 'timestamp' column.
+            The timestamp column must contain datetime objects.
         video_signals (pd.DataFrame): DataFrame with video features and a 'timestamp' column.
+            The timestamp column must contain datetime objects.
 
     Returns:
         pd.DataFrame: A merged DataFrame with signals aligned to the GSR timestamps.
+            If an error occurs, an empty DataFrame is returned.
+
+    Examples:
+        >>> gsr_data = pd.DataFrame({
+        ...     'timestamp': pd.to_datetime(['2023-01-01 00:00:00', '2023-01-01 00:00:01']),
+        ...     'GSR_Phasic': [0.1, 0.2]
+        ... })
+        >>> video_data = pd.DataFrame({
+        ...     'timestamp': pd.to_datetime(['2023-01-01 00:00:00.5', '2023-01-01 00:00:01.5']),
+        ...     'RGB_R': [100, 110]
+        ... })
+        >>> aligned_df = align_signals(gsr_data, video_data)
+        >>> print(aligned_df.shape)
+        (2, 3)
     """
     try:
         if CYTHON_AVAILABLE:
@@ -111,16 +131,46 @@ def create_feature_windows(
     """
     Creates overlapping windows from time-series data for sequence modeling.
 
+    This function transforms a DataFrame of time-series data into a format suitable
+    for sequence modeling by creating overlapping windows of features and their
+    corresponding target values. It supports both Cython and pure Python
+    implementations for performance optimization.
+
+    The function creates windows by sliding a window of size `window_size` over the
+    data with a step size of `step`. For each window, it extracts the features and
+    the target value at the end of the window.
+
     Args:
         df (pd.DataFrame): The synchronized DataFrame of features and targets.
+            Must contain columns specified in feature_cols and target_col.
         feature_cols (List[str]): A list of column names to be used as input features.
+            All columns must exist in the DataFrame.
         target_col (str): The name of the column to be used as the prediction target.
+            Must exist in the DataFrame.
         window_size (int): The number of time steps in each window (sequence length).
+            Must be a positive integer less than the length of the DataFrame.
         step (int): The number of time steps to move forward to create the next window.
+            Must be a positive integer. Smaller values create more overlapping windows.
 
     Returns:
-        Tuple[np.ndarray, np.ndarray]: A tuple containing the feature windows (X)
-                                       and the corresponding target values (y).
+        Tuple[np.ndarray, np.ndarray]: A tuple containing:
+            - X (np.ndarray): Feature windows with shape (n_windows, window_size, n_features)
+            - y (np.ndarray): Target values with shape (n_windows,)
+              where n_windows = floor((len(df) - window_size) / step) + 1
+
+    Examples:
+        >>> import pandas as pd
+        >>> import numpy as np
+        >>> # Create a sample DataFrame
+        >>> df = pd.DataFrame({
+        ...     'feature1': np.arange(100),
+        ...     'feature2': np.arange(100, 200),
+        ...     'target': np.arange(200, 300)
+        ... })
+        >>> # Create windows with size 10 and step 5
+        >>> X, y = create_feature_windows(df, ['feature1', 'feature2'], 'target', 10, 5)
+        >>> print(X.shape)  # (18, 10, 2)
+        >>> print(y.shape)  # (18,)
     """
     if CYTHON_AVAILABLE:
         # Use the Cython implementation for better performance
@@ -163,6 +213,46 @@ def create_dataset_from_session(
 ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
     """
     Full pipeline to load, preprocess, align, and window data from a single session.
+
+    This function implements the complete data processing pipeline for a single recording
+    session. It performs the following steps:
+    1. Loads GSR data from the session
+    2. Preprocesses the GSR signal to extract tonic and phasic components
+    3. Extracts RGB signals from video frames using palm ROI detection
+    4. Aligns the GSR and video signals to a common timeline
+    5. Creates feature windows for machine learning
+
+    The function handles potential failures at each step and returns None if any
+    critical step fails.
+
+    Args:
+        session_path (Path): Path to the session directory containing GSR and video data.
+            The directory should have the structure expected by SessionDataLoader.
+        gsr_sampling_rate (int): Sampling rate of the GSR signal in Hz.
+            Used for preprocessing and windowing.
+        video_fps (int): Frame rate of the video in frames per second.
+            Used to associate timestamps with video frames.
+
+    Returns:
+        Optional[Tuple[np.ndarray, np.ndarray]]: If successful, returns a tuple containing:
+            - X (np.ndarray): Feature windows with shape (n_windows, window_size, n_features)
+            - y (np.ndarray): Target values with shape (n_windows,)
+          If any step fails, returns None.
+
+    Notes:
+        - The function uses the following feature columns: ["RGB_B", "RGB_G", "RGB_R", "GSR_Tonic"]
+        - The target column is "GSR_Phasic"
+        - The window size is set to 5 seconds of data (5 * gsr_sampling_rate samples)
+        - The step size is set to 50% overlap (gsr_sampling_rate // 2)
+
+    Example:
+        >>> from pathlib import Path
+        >>> session_path = Path("data/recordings/Subject_01_20250101_000000")
+        >>> X, y = create_dataset_from_session(session_path, 32, 30)
+        >>> if X is not None:
+        ...     print(f"Created dataset with {X.shape[0]} windows")
+        ... else:
+        ...     print("Failed to create dataset from session")
     """
     # 1. Load Data
     loader = SessionDataLoader(session_path)

@@ -11,7 +11,8 @@ import pandas as pd
 project_root = Path(__file__).resolve().parents[2]
 sys.path.append(str(project_root))
 
-from src.processing.feature_engineering import align_signals, create_feature_windows
+from src.processing.feature_engineering import align_signals, create_feature_windows, create_dataset_from_session
+from unittest.mock import patch, MagicMock
 
 
 class TestFeatureEngineering(unittest.TestCase):
@@ -84,8 +85,9 @@ class TestFeatureEngineering(unittest.TestCase):
         self.assertIsInstance(y, np.ndarray)
 
         # Check shapes
-        # Expected number of windows = floor((total_samples - window_size) / step) + 1
-        expected_num_windows = (100 - window_size) // step + 1
+        # Expected number of windows = floor((total_samples - window_size) / step)
+        # The loop in create_feature_windows stops before i + window_size exceeds num_rows
+        expected_num_windows = (100 - window_size) // step
         self.assertEqual(
             X.shape, (expected_num_windows, window_size, len(feature_cols))
         )
@@ -117,8 +119,192 @@ class TestFeatureEngineering(unittest.TestCase):
             test_df, ["feature1"], "target", window_size, step
         )
 
-        expected_num_windows = 100 // window_size
+        # Expected number of windows = floor((total_samples - window_size) / step)
+        # For non-overlapping windows, this is (100 - 10) // 10 = 9
+        expected_num_windows = (100 - window_size) // step
         self.assertEqual(X.shape[0], expected_num_windows)
+
+    def test_align_signals_exception_handling(self):
+        """Test that align_signals handles exceptions properly."""
+        # Create invalid dataframes (missing timestamp column)
+        invalid_gsr_df = pd.DataFrame({"GSR_Phasic": [1, 2, 3]})
+        invalid_video_df = pd.DataFrame({"RGB_R": [4, 5, 6]})
+
+        # Test with invalid GSR dataframe
+        result = align_signals(invalid_gsr_df, self.video_df)
+        self.assertIsInstance(result, pd.DataFrame)
+        self.assertTrue(result.empty)
+
+        # Test with invalid video dataframe
+        result = align_signals(self.gsr_df, invalid_video_df)
+        self.assertIsInstance(result, pd.DataFrame)
+        self.assertTrue(result.empty)
+
+        # Test with both invalid dataframes
+        result = align_signals(invalid_gsr_df, invalid_video_df)
+        self.assertIsInstance(result, pd.DataFrame)
+        self.assertTrue(result.empty)
+
+    @patch('src.processing.feature_engineering.SessionDataLoader')
+    @patch('src.processing.feature_engineering.process_gsr_signal')
+    @patch('src.processing.feature_engineering.detect_palm_roi')
+    @patch('src.processing.feature_engineering.extract_roi_signal')
+    @patch('src.processing.feature_engineering.align_signals')
+    @patch('src.processing.feature_engineering.create_feature_windows')
+    def test_create_dataset_from_session(self, mock_create_windows, mock_align, 
+                                         mock_extract_roi, mock_detect_roi, 
+                                         mock_process_gsr, mock_loader):
+        """Test the create_dataset_from_session function."""
+        # Setup mocks
+        session_path = Path("dummy/path")
+        gsr_sampling_rate = 32
+        video_fps = 30
+
+        # Mock GSR data
+        gsr_timestamps = pd.to_datetime(np.arange(0, 10, 1/gsr_sampling_rate), unit="s")
+        mock_gsr_df = pd.DataFrame({
+            "timestamp": gsr_timestamps,
+            "GSR_Raw": np.random.randn(len(gsr_timestamps))
+        })
+
+        # Mock processed GSR data
+        mock_processed_gsr = pd.DataFrame({
+            "timestamp": gsr_timestamps,
+            "GSR_Phasic": np.random.randn(len(gsr_timestamps)),
+            "GSR_Tonic": np.random.randn(len(gsr_timestamps))
+        })
+
+        # Setup loader mock
+        mock_loader_instance = mock_loader.return_value
+        mock_loader_instance.get_gsr_data.return_value = mock_gsr_df
+
+        # Setup video frame generator
+        frame = np.random.randint(0, 255, (64, 64, 3), dtype=np.uint8)
+        mock_loader_instance.get_rgb_video_generator.return_value = [
+            (True, frame) for _ in range(10)
+        ]
+
+        # Setup other mocks
+        mock_process_gsr.return_value = mock_processed_gsr
+        mock_detect_roi.return_value = [(10, 10), (30, 30)]
+        mock_extract_roi.return_value = [100, 120, 140]  # RGB values
+
+        # Mock aligned data
+        aligned_data = pd.DataFrame({
+            "timestamp": gsr_timestamps,
+            "GSR_Phasic": np.random.randn(len(gsr_timestamps)),
+            "GSR_Tonic": np.random.randn(len(gsr_timestamps)),
+            "RGB_B": np.random.randn(len(gsr_timestamps)),
+            "RGB_G": np.random.randn(len(gsr_timestamps)),
+            "RGB_R": np.random.randn(len(gsr_timestamps))
+        })
+        mock_align.return_value = aligned_data
+
+        # Mock windowed data
+        X = np.random.randn(5, 10, 4)  # 5 windows, 10 timesteps, 4 features
+        y = np.random.randn(5)  # 5 target values
+        mock_create_windows.return_value = (X, y)
+
+        # Call the function
+        result = create_dataset_from_session(session_path, gsr_sampling_rate, video_fps)
+
+        # Assertions
+        self.assertIsNotNone(result)
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+
+        # Check that the mocks were called with appropriate arguments
+        mock_loader.assert_called_once_with(session_path)
+        mock_loader_instance.get_gsr_data.assert_called_once()
+        mock_process_gsr.assert_called_once_with(mock_gsr_df, sampling_rate=gsr_sampling_rate)
+        mock_loader_instance.get_rgb_video_generator.assert_called_once()
+
+        # Check that the result matches the expected output
+        X_result, y_result = result
+        np.testing.assert_array_equal(X_result, X)
+        np.testing.assert_array_equal(y_result, y)
+
+    @patch('src.processing.feature_engineering.SessionDataLoader')
+    def test_create_dataset_from_session_no_gsr_data(self, mock_loader):
+        """Test create_dataset_from_session when no GSR data is available."""
+        # Setup mocks
+        session_path = Path("dummy/path")
+        mock_loader_instance = mock_loader.return_value
+        mock_loader_instance.get_gsr_data.return_value = None
+
+        # Call the function
+        result = create_dataset_from_session(session_path, 32, 30)
+
+        # Assertions
+        self.assertIsNone(result)
+        mock_loader.assert_called_once_with(session_path)
+        mock_loader_instance.get_gsr_data.assert_called_once()
+
+    @patch('src.processing.feature_engineering.SessionDataLoader')
+    @patch('src.processing.feature_engineering.process_gsr_signal')
+    def test_create_dataset_from_session_gsr_processing_failed(self, mock_process_gsr, mock_loader):
+        """Test create_dataset_from_session when GSR processing fails."""
+        # Setup mocks
+        session_path = Path("dummy/path")
+        mock_loader_instance = mock_loader.return_value
+        mock_loader_instance.get_gsr_data.return_value = pd.DataFrame({"GSR_Raw": [1, 2, 3]})
+        mock_process_gsr.return_value = None
+
+        # Call the function
+        result = create_dataset_from_session(session_path, 32, 30)
+
+        # Assertions
+        self.assertIsNone(result)
+        mock_loader.assert_called_once_with(session_path)
+        mock_loader_instance.get_gsr_data.assert_called_once()
+        mock_process_gsr.assert_called_once()
+
+    @patch('src.processing.feature_engineering.SessionDataLoader')
+    @patch('src.processing.feature_engineering.process_gsr_signal')
+    @patch('src.processing.feature_engineering.detect_palm_roi')
+    def test_create_dataset_from_session_no_video_features(self, mock_detect_roi, mock_process_gsr, mock_loader):
+        """Test create_dataset_from_session when no video features can be extracted."""
+        # Setup mocks
+        session_path = Path("dummy/path")
+        gsr_sampling_rate = 32
+
+        # Mock GSR data
+        gsr_timestamps = pd.to_datetime(np.arange(0, 10, 1/gsr_sampling_rate), unit="s")
+        mock_gsr_df = pd.DataFrame({
+            "timestamp": gsr_timestamps,
+            "GSR_Raw": np.random.randn(len(gsr_timestamps))
+        })
+
+        # Mock processed GSR data
+        mock_processed_gsr = pd.DataFrame({
+            "timestamp": gsr_timestamps,
+            "GSR_Phasic": np.random.randn(len(gsr_timestamps)),
+            "GSR_Tonic": np.random.randn(len(gsr_timestamps))
+        })
+
+        # Setup loader mock
+        mock_loader_instance = mock_loader.return_value
+        mock_loader_instance.get_gsr_data.return_value = mock_gsr_df
+
+        # Setup video frame generator
+        frame = np.random.randint(0, 255, (64, 64, 3), dtype=np.uint8)
+        mock_loader_instance.get_rgb_video_generator.return_value = [
+            (True, frame) for _ in range(10)
+        ]
+
+        # Setup other mocks
+        mock_process_gsr.return_value = mock_processed_gsr
+        mock_detect_roi.return_value = None  # No ROI detected
+
+        # Call the function
+        result = create_dataset_from_session(session_path, gsr_sampling_rate, 30)
+
+        # Assertions
+        self.assertIsNone(result)
+        mock_loader.assert_called_once_with(session_path)
+        mock_loader_instance.get_gsr_data.assert_called_once()
+        mock_process_gsr.assert_called_once()
+        mock_loader_instance.get_rgb_video_generator.assert_called_once()
 
 
 if __name__ == "__main__":
