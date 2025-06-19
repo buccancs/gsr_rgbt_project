@@ -1,6 +1,45 @@
-.venv/
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# IDE and Editor specific
 .idea/
 .vscode/
+*.swp
+*~
+
+# Data files - These should not be version controlled
+# as they can be very large. The repository should only contain code.
 data/recordings/
+data/processed/
+data/raw/
+
+# Log files and reports
+*.log
+*.csv
+*.png
+*.keras
+*.joblib
+
+# Ignore all csv, png, keras, and joblib files in the data directory
+data/**/*.csv
+data/**/*.png
+data/**/*.keras
+data/**/*.joblib
+
+# But DO include the sample data file
+!data/sample/sample_gsr.csv
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
