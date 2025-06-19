@@ -27,7 +27,10 @@ processing/: Modules for loading, preprocessing, and creating feature windows fr
 ml_models/: Defines the neural network architectures and model configuration system.
   - model_interface.py: Provides a common interface for all models, regardless of framework.
   - models.py: Implements TensorFlow/Keras model architectures (legacy support).
-  - pytorch_models.py: Implements PyTorch versions of all models.
+  - pytorch_models.py: Implements PyTorch versions of LSTM, Autoencoder, and VAE models.
+  - pytorch_cnn_models.py: Implements CNN and CNN-LSTM hybrid models.
+  - pytorch_transformer_models.py: Implements Transformer models for time series data.
+  - pytorch_resnet_models.py: Implements ResNet models for time series data.
   - model_config.py: Provides a flexible configuration system for model hyperparameters.
 
 scripts/: Contains the high-level scripts for training, inference, and evaluation.
@@ -94,7 +97,7 @@ A new folder containing all recorded data for that session will be created in da
 participants.
 
 Stage 2: Model Training
-Once you have collected data for all subjects, run the training script. This script supports different model types and configurations through a flexible command-line interface.
+Once you have collected data for all subjects, you can either run the individual training script or use the config-driven pipeline execution script. Both support different model types and configurations through a flexible command-line interface.
 
 ### Creating Example Configuration Files
 First, create example configuration files for all supported model types:
@@ -133,6 +136,26 @@ To save models and results to a custom directory:
 python src/scripts/train_model.py --output-dir path/to/output
 ```
 
+### Using the Config-Driven Pipeline
+For a more streamlined experience, you can use the config-driven pipeline execution script, which handles all stages of the pipeline based on a single configuration file:
+
+```bash
+python src/scripts/run_ml_pipeline_from_config.py --config-path configs/pipeline/pipeline_config.yaml
+```
+
+To create an example pipeline configuration file:
+
+```bash
+python src/scripts/run_ml_pipeline_from_config.py --create-example-config
+```
+
+The pipeline configuration file allows you to specify:
+- Data generation settings
+- Which models to train and their configurations
+- Test subjects for inference
+- Visualization settings
+- Model milestone settings
+
 The training script will:
 
 - Load and process the data for all subjects found in data/recordings/.
@@ -142,7 +165,7 @@ The training script will:
 - Save the final cross-validation performance metrics to a CSV file.
 
 Stage 3: Inference and Evaluation
-After training, you need to run inference on your test data and then evaluate the results.
+After training, you need to run inference on your test data and then evaluate the results. You can do this using individual scripts or the config-driven pipeline.
 
 ### Running Inference
 Use the inference script to generate predictions for a specific subject:
@@ -157,24 +180,45 @@ This script will:
 - Generate predictions
 - Save the results to a CSV file in data/recordings/predictions/
 
-### Running Evaluation
-After generating predictions, run the evaluation script to visualize the results:
+### Running Evaluation and Visualization
+After generating predictions, run the visualization script to create plots and reports:
 
 ```bash
-python src/scripts/evaluate_model.py
+python src/scripts/visualize_results.py --plot-history --plot-predictions --model-comparison --annotate-graphs
 ```
 
-The script is pre-configured to evaluate the results for Subject01. You can change the TEST_SUBJECT_ID inside the script to evaluate other subjects.
+Command-line options:
+- `--plot-history`: Plot training history for all models
+- `--plot-predictions`: Plot predictions vs. ground truth for all prediction files
+- `--model-comparison`: Generate model comparison reports
+- `--annotate-graphs`: Annotate graphs with additional information (model config, metrics, etc.)
+- `--output-dir`: Custom output directory for visualizations
+- `--save-milestone MODEL_TYPE`: Save a milestone of the specified model type
+- `--milestone-name NAME`: Name for the milestone (used with --save-milestone)
+- `--all`: Run all visualization and reporting tasks
 
-It generates and saves two plots:
-- A time-series plot comparing the predicted GSR vs. the ground truth.
-- A Bland-Altman plot to assess the agreement between the two measurements.
+The script generates and saves various plots:
+- Training history plots showing loss curves
+- Prediction plots comparing the predicted values vs. the ground truth
+- Model comparison reports with performance metrics
+- All plots can be annotated with model configuration details, metrics, and timestamps
 
-All output plots are saved to data/recordings/evaluation_plots/.
+All output plots are saved to data/recordings/evaluation_plots/ by default, or to the specified output directory.
 
 ## Model Configuration System
 
 The project includes a flexible configuration system for machine learning models, allowing you to easily experiment with different architectures and hyperparameters.
+
+### Supported Model Architectures
+The project supports the following neural network architectures:
+
+- **LSTM**: Long Short-Term Memory networks for sequence modeling
+- **Autoencoder**: For unsupervised feature learning and anomaly detection
+- **VAE**: Variational Autoencoders for generative modeling
+- **CNN**: Convolutional Neural Networks for feature extraction
+- **CNN-LSTM**: Hybrid model combining CNN and LSTM layers
+- **Transformer**: Self-attention based models for sequence data
+- **ResNet**: Residual Networks with skip connections for deep architectures
 
 ### Configuration Files
 Model configurations are stored in YAML files with the following structure:
@@ -182,43 +226,55 @@ Model configurations are stored in YAML files with the following structure:
 ```yaml
 # Example LSTM configuration
 name: lstm
-layers:
-  - type: lstm
-    units: 64
-    return_sequences: true
-  - type: dropout
-    rate: 0.2
-  - type: lstm
-    units: 32
-    return_sequences: false
-  - type: dropout
-    rate: 0.2
-  - type: dense
-    units: 16
-    activation: relu
-  - type: dense
-    units: 1
-    activation: linear
-compile_params:
-  optimizer:
-    type: adam
-    learning_rate: 0.001
-  loss: mean_absolute_error
-  metrics:
-    - mean_squared_error
-fit_params:
+framework: pytorch
+model_params:
+  hidden_size: 64
+  num_layers: 2
+  dropout: 0.2
+  bidirectional: false
+  fc_layers: [32, 16, 1]
+  activations: ["relu", "relu", "linear"]
+optimizer_params:
+  type: adam
+  lr: 0.001
+  weight_decay: 1e-5
+loss_fn: mse
+train_params:
   epochs: 100
   batch_size: 32
   validation_split: 0.2
-  callbacks:
-    early_stopping:
-      monitor: val_loss
-      patience: 10
-      restore_best_weights: true
-    model_checkpoint:
-      save_best_only: true
-      monitor: val_loss
-    tensorboard: {}
+  early_stopping:
+    patience: 10
+    monitor: val_loss
+  checkpoint:
+    save_best_only: true
+    monitor: val_loss
+```
+
+### Model-Specific Configuration Parameters
+
+Different model architectures require different configuration parameters:
+
+#### Transformer Model
+```yaml
+model_params:
+  d_model: 64        # Dimension of the model
+  nhead: 4           # Number of attention heads
+  num_layers: 2      # Number of transformer layers
+  dim_feedforward: 256  # Dimension of feedforward network
+  dropout: 0.1
+  fc_layers: [32, 16, 1]
+  activations: ["relu", "relu", "linear"]
+```
+
+#### ResNet Model
+```yaml
+model_params:
+  layers: [64, 128, 256, 512]  # Number of channels for each layer
+  blocks_per_layer: [2, 2, 2, 2]  # Number of residual blocks per layer
+  fc_layers: [256, 64, 1]
+  activations: ["relu", "relu", "linear"]
+  dropout_rate: 0.2
 ```
 
 ### Using Configurations in Code
@@ -228,24 +284,57 @@ You can load and modify configurations programmatically:
 from src.ml_models.model_config import ModelConfig
 
 # Load a default configuration
-config = ModelConfig("lstm")
+config = ModelConfig("transformer")
 
 # Update specific parameters
 config.update_config({
-    "layers": [
-        {"type": "lstm", "units": 128, "return_sequences": True},
-        {"type": "dropout", "rate": 0.3},
-        # ... other layers
-    ],
-    "compile_params": {
-        "optimizer": {
-            "learning_rate": 0.0005
-        }
+    "model_params": {
+        "d_model": 128,
+        "nhead": 8,
+        "num_layers": 3,
+        "dim_feedforward": 512
+    },
+    "optimizer_params": {
+        "lr": 0.0005
     }
 })
 
 # Save the configuration to a file
-config.save_to_file(Path("configs/models/custom_lstm.yaml"))
+config.save_to_file(Path("configs/models/custom_transformer.yaml"))
+```
+
+### Pipeline Configuration
+In addition to model configurations, you can also create pipeline configurations that specify the entire ML workflow:
+
+```yaml
+data_generation:
+  enabled: true
+  num_subjects: 10
+  sessions_per_subject: 2
+cython_build:
+  enabled: true
+models:
+  - name: lstm
+    config:
+      model_params:
+        hidden_size: 64
+        num_layers: 2
+  - name: transformer
+    config:
+      model_params:
+        d_model: 64
+        nhead: 4
+test_subjects: ["MockSubject01", "MockSubject02"]
+visualization:
+  enabled: true
+  plot_history: true
+  plot_predictions: true
+  model_comparison: true
+  output_dir: "outputs/visualizations"
+  annotate_graphs: true
+milestones:
+  enabled: true
+  milestone_name: "final"
 ```
 
 This configuration system makes it easy to experiment with different model architectures and hyperparameters without modifying the code.

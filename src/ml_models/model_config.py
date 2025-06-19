@@ -114,6 +114,74 @@ DEFAULT_CONFIGS = {
         }
     },
 
+    # PyTorch Transformer model
+    "pytorch_transformer": {
+        "name": "transformer",
+        "framework": "pytorch",
+        "model_params": {
+            "input_size": None,  # Will be set based on input shape
+            "d_model": 64,
+            "nhead": 4,
+            "num_layers": 2,
+            "dim_feedforward": 256,
+            "dropout": 0.1,
+            "fc_layers": [32, 16, 1],
+            "activations": ["relu", "relu", "linear"]
+        },
+        "optimizer_params": {
+            "type": "adam",
+            "lr": 0.001,
+            "weight_decay": 1e-5
+        },
+        "loss_fn": "mse",
+        "train_params": {
+            "epochs": 100,
+            "batch_size": 32,
+            "validation_split": 0.2,
+            "early_stopping": {
+                "patience": 10,
+                "monitor": "val_loss"
+            },
+            "checkpoint": {
+                "save_best_only": True,
+                "monitor": "val_loss"
+            }
+        }
+    },
+
+    # PyTorch ResNet model
+    "pytorch_resnet": {
+        "name": "resnet",
+        "framework": "pytorch",
+        "model_params": {
+            "input_size": None,  # Will be set based on input shape
+            "layers": [64, 128, 256, 512],
+            "blocks_per_layer": [2, 2, 2, 2],  # ResNet-18 by default
+            "fc_layers": [256, 64, 1],
+            "activations": ["relu", "relu", "linear"],
+            "dropout_rate": 0.2
+        },
+        "optimizer_params": {
+            "type": "adam",
+            "lr": 0.001,
+            "weight_decay": 1e-5
+        },
+        "loss_fn": "mse",
+        "train_params": {
+            "epochs": 100,
+            "batch_size": 32,
+            "validation_split": 0.2,
+            "early_stopping": {
+                "patience": 10,
+                "monitor": "val_loss"
+            },
+            "checkpoint": {
+                "save_best_only": True,
+                "monitor": "val_loss"
+            }
+        }
+    },
+
     # Legacy TensorFlow LSTM model (for backward compatibility)
     "tf_lstm": {
         "name": "lstm",
@@ -236,7 +304,11 @@ DEFAULT_CONFIGS = {
     # Aliases for backward compatibility
     "lstm": "pytorch_lstm",
     "autoencoder": "pytorch_autoencoder",
-    "vae": "pytorch_vae"
+    "vae": "pytorch_vae",
+    "transformer": "pytorch_transformer",
+    "resnet": "pytorch_resnet",
+    "cnn": "pytorch_cnn",
+    "cnn_lstm": "pytorch_cnn_lstm"
 }
 
 
