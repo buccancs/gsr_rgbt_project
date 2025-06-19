@@ -11,6 +11,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
+import torch
 from sklearn.preprocessing import StandardScaler
 
 project_root = Path(__file__).resolve().parents[2]
@@ -142,6 +143,13 @@ def parse_arguments():
         help="Directory to save prediction results (defaults to config.OUTPUT_DIR)"
     )
 
+    parser.add_argument(
+        "--checkpoint-path",
+        type=str,
+        default=None,
+        help="Path to a specific model checkpoint to use instead of the full model"
+    )
+
     return parser.parse_args()
 
 
@@ -233,7 +241,22 @@ def main():
                     }
 
                     if model_type in model_factories:
-                        model = model_factories[model_type].load(model_path)
+                        if args.checkpoint_path:
+                            # Load the model structure from the model path
+                            model = model_factories[model_type].load(model_path)
+
+                            # Load the state_dict from the checkpoint path
+                            checkpoint_path = Path(args.checkpoint_path)
+                            if checkpoint_path.exists():
+                                logging.info(f"Loading checkpoint from {checkpoint_path}")
+                                state_dict = torch.load(str(checkpoint_path))
+                                model.model.load_state_dict(state_dict)
+                                logging.info(f"Successfully loaded checkpoint from {checkpoint_path}")
+                            else:
+                                logging.warning(f"Checkpoint path {checkpoint_path} does not exist. Using the full model instead.")
+                        else:
+                            # Load the full model
+                            model = model_factories[model_type].load(model_path)
                     else:
                         raise ValueError(f"Unknown PyTorch model type: {model_type}")
                 else:

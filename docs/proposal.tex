@@ -27,8 +27,8 @@
 
     \begin{figure}[ht]
         \centering
-        \fbox{\parbox{0.8\textwidth}{\centering \emph{Figure:} System architecture diagram (placeholder)}}
-        \caption{Proposed system architecture for contactless GSR prediction via synchronized RGB and thermal cameras.}
+        \includegraphics[width=0.8\textwidth]{../references/system_architecture.png}
+        \caption{Proposed system architecture for contactless GSR prediction via synchronized RGB and thermal cameras. The system consists of two main components: (1) Data Acquisition with synchronized RGB and thermal cameras capturing hand video while a GSR sensor records ground truth from the opposite hand, and (2) Machine Learning Pipeline that processes the video streams, extracts Multi-ROI signals, and predicts GSR values.}
         \label{fig:architecture}
     \end{figure}
 
@@ -52,11 +52,11 @@
         \item \textbf{Literature Review and Protocol Design:} Conduct an in-depth review of contactless physiological sensing and emotion recognition methods, with a focus on contralateral sympathetic responses ("mirror effect"). Finalize experimental protocols for stimuli presentation and data acquisition. Secure ethical approval and assemble equipment (RGB camera, thermal camera, GSR sensor).
         \item \textbf{Data Collection:} Recruit participants and record synchronized RGB-thermal video of one hand while measuring GSR from the opposite hand. We will induce stress or emotional arousal via validated tasks (e.g., mental arithmetic, startling stimuli) to produce GSR fluctuations. Target a dataset of at least 30 subjects under both resting and aroused conditions, ensuring proper positioning of both hands for optimal data collection.
         \item \textbf{Model Development:} Preprocess the collected data to align frames and sensor timestamps. Implement hand landmark detection using MediaPipe to identify key regions of interest (Multi-ROI approach). Extract signals from three specific ROIs: (1) base of the index finger, which contains a high concentration of sweat glands, (2) base of the ring finger, which shows strong vascular patterns, and (3) center of the palm, which provides a stable reference point with consistent blood flow. These ROIs are extracted from both RGB and thermal streams to capture complementary information. Implement and train machine learning models (e.g., dual-stream CNN-LSTM networks) that map video-derived features to GSR values. Benchmark traditional regression versus deep learning fusion models. Implement proper train/validation/test splits with subject-aware validation to prevent data leakage, and save detailed metadata about the training process including model configuration, preprocessing parameters, training parameters, and evaluation metrics for each fold and subject.
-        \item \textbf{Prototype Implementation:} Integrate the best-performing model into a prototype application. This will include a figure placeholder for the data pipeline:
+        \item \textbf{Prototype Implementation:} Integrate the best-performing model into a prototype application. Below is a schematic of our data pipeline:
         \begin{figure}[ht]
             \centering
-            \fbox{\parbox{0.8\textwidth}{\centering \emph{Figure:} Data processing pipeline (placeholder)}}
-            \caption{Schematic of the data pipeline from camera capture to GSR prediction, highlighting the Multi-ROI approach with three key regions: index finger base, ring finger base, and palm center.}
+            \includegraphics[width=0.8\textwidth]{../references/data_pipeline.png}
+            \caption{Schematic of the data pipeline from camera capture to GSR prediction, highlighting the Multi-ROI approach with three key regions: index finger base (MediaPipe landmark 5), ring finger base (MediaPipe landmark 13), and palm center (average of landmarks 0, 5, 9, 13, 17). The pipeline includes preprocessing, feature extraction, and machine learning model training/inference stages.}
             \label{fig:pipeline}
         \end{figure}
         The system will process live video frames through hand landmark detection using MediaPipe, Multi-ROI extraction of the three key regions (index finger base, ring finger base, and palm center), signal processing to extract features from each ROI, and the trained model to yield continuous GSR predictions, updating in real time. The pipeline includes comprehensive metadata logging at each stage, enabling detailed analysis and reproducibility of results.
@@ -86,8 +86,8 @@
     These applications would leverage the contactless nature of our system. For instance, thermal-based stress detection studies have shown that certain facial regions’ temperature changes can discern stress vs. rest:contentReference[oaicite:32]{index=32}. If the present method works, one could envision a smartphone app or a kiosk that observes facial cues and alerts users to high stress or detects anomalous arousal. We include a placeholder for an example user interface:
     \begin{figure}[ht]
         \centering
-        \fbox{\parbox{0.8\textwidth}{\centering \emph{Figure:} Application UI (placeholder)}}
-        \caption{Conceptual user interface illustrating real-time display of predicted GSR (as a skin conductance curve) and derived stress level.}
+        \includegraphics[width=0.8\textwidth]{../references/application_ui.png}
+        \caption{Conceptual user interface illustrating real-time display of predicted GSR (as a skin conductance curve) and derived stress level. The interface includes: (A) Video display with hand landmark detection and Multi-ROI visualization, (B) Real-time GSR prediction graph showing both predicted and ground truth values when available, (C) Stress level indicator with color-coded zones, and (D) Session controls and metadata display.}
         \label{fig:ui}
     \end{figure}
     By combining RGB and thermal sensors, the system is robust across lighting conditions and could be integrated into industrial equipment (e.g. worker helmet sensors) or consumer devices. Overall, the technology has potential impact in any domain where human stress or arousal monitoring is valuable.

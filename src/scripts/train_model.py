@@ -4,6 +4,7 @@ import logging
 import argparse
 import json
 import datetime
+import subprocess
 from typing import Dict, Any, Optional, Tuple, List
 
 # --- Import project modules ---
@@ -156,6 +157,20 @@ def parse_arguments() -> argparse.Namespace:
         help="Directory to save models and results (defaults to config.OUTPUT_DIR)"
     )
 
+    parser.add_argument(
+        "--experiment-id",
+        type=str,
+        default=None,
+        help="Unique identifier for this experiment run, used for organizing outputs"
+    )
+
+    parser.add_argument(
+        "--milestone-epochs",
+        type=str,
+        default="",
+        help="Comma-separated list of epoch numbers at which to save model checkpoints (e.g., '10,20,50')"
+    )
+
     # Cross-validation options
     parser.add_argument(
         "--cv-folds", 
@@ -266,6 +281,20 @@ def build_model_from_config(
     raise ValueError(f"Unsupported framework: {framework}")
 
 
+def get_git_commit_hash() -> str:
+    """
+    Get the current Git commit hash.
+
+    Returns:
+        str: The current Git commit hash, or "unknown" if not in a Git repository.
+    """
+    try:
+        commit_hash = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip().decode('utf-8')
+        return commit_hash
+    except Exception:
+        return "unknown"
+
+
 def create_training_metadata(
     model_type: str,
     model_config: ModelConfig,
@@ -318,6 +347,7 @@ def create_training_metadata(
         "training": training_params,
         "metrics": metrics,
         "timestamp": datetime.datetime.now().isoformat(),
+        "git_commit_hash": get_git_commit_hash(),
         "config": model_config.get_config()
     }
 
@@ -435,8 +465,49 @@ def main():
         return
 
     # Set output directory
-    output_dir = Path(args.output_dir) if args.output_dir else config.OUTPUT_DIR
-    output_dir.mkdir(exist_ok=True, parents=True)
+    base_output_dir = Path(args.output_dir) if args.output_dir else config.OUTPUT_DIR
+    base_output_dir.mkdir(exist_ok=True, parents=True)
+
+    # Create experiment directory structure
+    if args.experiment_id:
+        # Use the provided experiment ID
+        experiment_id = args.experiment_id
+    else:
+        # Generate a timestamp-based experiment ID
+        experiment_id = f"{args.model_type}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+    # Parse milestone epochs if provided
+    milestone_epochs = []
+    if args.milestone_epochs:
+        try:
+            milestone_epochs = [int(epoch) for epoch in args.milestone_epochs.split(',')]
+            logging.info(f"Will save checkpoints at epochs: {milestone_epochs}")
+        except ValueError:
+            logging.warning(f"Invalid milestone epochs format: {args.milestone_epochs}. Expected comma-separated integers.")
+            milestone_epochs = []
+
+    # Create experiment directory
+    experiment_dir = base_output_dir / "experiments" / experiment_id
+    experiment_dir.mkdir(exist_ok=True, parents=True)
+
+    # Create subdirectories for different artifact types
+    models_dir = experiment_dir / "models"
+    models_dir.mkdir(exist_ok=True, parents=True)
+
+    scalers_dir = experiment_dir / "scalers"
+    scalers_dir.mkdir(exist_ok=True, parents=True)
+
+    metadata_dir = experiment_dir / "metadata"
+    metadata_dir.mkdir(exist_ok=True, parents=True)
+
+    checkpoints_dir = experiment_dir / "checkpoints"
+    checkpoints_dir.mkdir(exist_ok=True, parents=True)
+
+    # Use experiment directory as the output directory
+    output_dir = experiment_dir
+
+    logging.info(f"Experiment ID: {experiment_id}")
+    logging.info(f"Experiment directory: {experiment_dir}")
 
     logging.info(f"Starting model training pipeline for model type: {args.model_type}")
 
@@ -472,8 +543,7 @@ def main():
         model_config = ModelConfig(config_name=args.model_type)
 
     # Save the configuration used for this run
-    config_save_path = output_dir / f"models/{args.model_type}_config_used.yaml"
-    config_save_path.parent.mkdir(exist_ok=True, parents=True)
+    config_save_path = models_dir / f"{args.model_type}_config_used.yaml"
     model_config.save_to_file(config_save_path)
     logging.info(f"Saved model configuration to {config_save_path}")
 
@@ -544,7 +614,7 @@ def main():
         X_test_scaled = scaler.transform(X_test.reshape(-1, X_test.shape[-1])).reshape(X_test.shape)
 
         # Save the scaler
-        scaler_path = output_dir / f"models/scaler_{args.model_type}_fold_{fold+1}_subject_{subject_id}.joblib"
+        scaler_path = scalers_dir / f"scaler_{args.model_type}_fold_{fold+1}_subject_{subject_id}.joblib"
         joblib.dump(scaler, scaler_path)
         logging.info(f"Saved scaler to {scaler_path}")
 
@@ -555,9 +625,8 @@ def main():
         # Determine if we're using a PyTorch or TensorFlow model
         is_pytorch_model = hasattr(model, 'fit') and callable(getattr(model, 'fit'))
 
-        # Create model save path
-        model_save_dir = output_dir / "models"
-        model_save_dir.mkdir(exist_ok=True, parents=True)
+        # Use the models directory created earlier
+        model_save_dir = models_dir
 
         # Create preprocessing parameters dictionary for metadata
         preprocessing_params = {
@@ -584,7 +653,10 @@ def main():
             history = model.fit(
                 X_train_scaled,
                 y_train,
-                validation_data=(X_val_scaled, y_val)
+                validation_data=(X_val_scaled, y_val),
+                model_save_dir=checkpoints_dir,
+                fold_num=fold,
+                milestone_epochs=milestone_epochs
             )
 
             # Save the model
@@ -703,7 +775,7 @@ def main():
             # Save metadata
             save_training_metadata(
                 metadata=metadata,
-                output_dir=output_dir,
+                output_dir=metadata_dir,
                 model_type=args.model_type,
                 fold=fold,
                 subject_id=subject_id

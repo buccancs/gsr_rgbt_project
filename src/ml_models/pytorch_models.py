@@ -650,6 +650,9 @@ class PyTorchLSTMModel(BasePyTorchModel):
     The model consists of an LSTM layer followed by fully connected layers
     for time series regression tasks. It is designed to process sequential data
     with a fixed window size and predict a single target value.
+
+    This model supports saving checkpoints at specific milestone epochs during training,
+    which can be useful for comparing model performance at different stages of training.
     """
 
     def __init__(self, input_shape: Tuple[int, int], config: Dict[str, Any]):
@@ -735,6 +738,9 @@ class PyTorchLSTMModel(BasePyTorchModel):
             X (np.ndarray): Input features of shape (samples, window_size, features)
             y (np.ndarray): Target values of shape (samples,)
             **kwargs: Additional arguments for training
+                model_save_dir (Path, optional): Directory to save model checkpoints
+                fold_num (int, optional): Current fold number for naming checkpoints
+                milestone_epochs (List[int], optional): List of epochs at which to save checkpoints
 
         Returns:
             Dict[str, Any]: Training history
@@ -751,6 +757,11 @@ class PyTorchLSTMModel(BasePyTorchModel):
         batch_size = train_params.get("batch_size", 32)
         epochs = train_params.get("epochs", 100)
         validation_split = train_params.get("validation_split", 0.2)
+
+        # Get checkpoint parameters
+        model_save_dir = kwargs.get("model_save_dir", None)
+        fold_num = kwargs.get("fold_num", 0)
+        milestone_epochs = kwargs.get("milestone_epochs", [])
 
         # Split dataset into training and validation
         val_size = int(len(dataset) * validation_split)
@@ -814,6 +825,12 @@ class PyTorchLSTMModel(BasePyTorchModel):
 
             # Log progress
             logging.info(f"Epoch {epoch+1}/{epochs} - train_loss: {train_loss:.4f} - val_loss: {val_loss:.4f}")
+
+            # Save checkpoint at milestone epochs if requested
+            if model_save_dir is not None and (epoch + 1) in milestone_epochs:
+                checkpoint_path = model_save_dir / f"{self.config.get('name', 'model')}_epoch_{epoch+1}_fold_{fold_num}.pt"
+                torch.save(self.model.state_dict(), checkpoint_path)
+                logging.info(f"Saved checkpoint at epoch {epoch+1} to {checkpoint_path}")
 
             # Check early stopping
             if early_stopping({"val_loss": val_loss}, self.model):
