@@ -20,7 +20,7 @@ data/recordings/
 data/processed/
 data/raw/
 
-# Log files and reports
+# Log files and repo_forensic
 *.log
 *.csv
 *.png

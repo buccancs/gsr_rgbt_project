@@ -3,28 +3,28 @@
 """
 Script for visualization and reporting of ML model results.
 
-This script generates plots and reports to help analyze the performance of the models.
+This script generates plots and repo_forensic to help analyze the performance of the models.
 It includes functions for:
 1. Plotting training history (loss curves)
 2. Visualizing predictions vs. ground truth
-3. Generating performance metrics reports
+3. Generating performance metrics repo_forensic
 4. Creating comparison visualizations between different models
 """
 
-import logging
 import argparse
-from pathlib import Path
 import json
+import logging
 import re
+# --- Add project root to path for absolute imports ---
+import sys
+from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
-# --- Add project root to path for absolute imports ---
-import sys
 project_root = Path(__file__).resolve().parents[2]
 sys.path.append(str(project_root))
 
@@ -42,7 +42,7 @@ logging.basicConfig(
 
 # --- Constants ---
 PLOTS_DIR = config.OUTPUT_DIR / "evaluation_plots"
-REPORTS_DIR = config.OUTPUT_DIR / "reports"
+REPORTS_DIR = config.OUTPUT_DIR / "repo_forensic"
 PREDICTIONS_DIR = config.OUTPUT_DIR / "predictions"
 MODELS_DIR = config.OUTPUT_DIR / "models"
 
@@ -89,11 +89,11 @@ def plot_training_history(history_file, output_path=None, annotate=True):
                 best_epoch = np.argmin(history['val_loss']) + 1  # +1 because epochs start at 1
                 best_val_loss = history['val_loss'][best_epoch - 1]
                 plt.annotate(f'Best val_loss: {best_val_loss:.4f}',
-                            xy=(best_epoch, best_val_loss),
-                            xytext=(best_epoch + 5, best_val_loss * 1.1),
-                            arrowprops=dict(facecolor='black', shrink=0.05, width=1.5, headwidth=8),
-                            fontsize=10,
-                            bbox=dict(boxstyle="round,pad=0.3", fc="yellow", alpha=0.3))
+                             xy=(best_epoch, best_val_loss),
+                             xytext=(best_epoch + 5, best_val_loss * 1.1),
+                             arrowprops=dict(facecolor='black', shrink=0.05, width=1.5, headwidth=8),
+                             fontsize=10,
+                             bbox=dict(boxstyle="round,pad=0.3", fc="yellow", alpha=0.3))
 
         plt.title(f'Training and Validation Loss - {model_name.upper()}')
         plt.xlabel('Epochs')
@@ -137,8 +137,8 @@ def plot_training_history(history_file, output_path=None, annotate=True):
                 annotation_text += f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
                 # Add annotation to plot
-                plt.figtext(0.02, 0.02, annotation_text, fontsize=8, 
-                           bbox=dict(boxstyle="round,pad=0.5", fc="white", alpha=0.8))
+                plt.figtext(0.02, 0.02, annotation_text, fontsize=8,
+                            bbox=dict(boxstyle="round,pad=0.5", fc="white", alpha=0.8))
             except Exception as e:
                 logging.warning(f"Could not add model configuration annotation: {e}")
 
@@ -220,8 +220,8 @@ def plot_predictions_vs_ground_truth(predictions_file, output_path=None, annotat
             # Add metrics as text
             metrics_text = f'MSE: {mse:.4f}\nRMSE: {rmse:.4f}\nMAE: {mae:.4f}\nR²: {r2:.4f}'
             ax2.annotate(metrics_text, xy=(0.05, 0.95), xycoords='axes fraction',
-                        bbox=dict(boxstyle="round,pad=0.5", fc="white", alpha=0.8),
-                        va='top')
+                         bbox=dict(boxstyle="round,pad=0.5", fc="white", alpha=0.8),
+                         va='top')
 
         # For autoencoder/VAE models (reconstruction error)
         elif 'reconstruction_mse' in predictions_df.columns:
@@ -406,7 +406,7 @@ def parse_arguments():
     parser.add_argument(
         "--model-comparison",
         action="store_true",
-        help="Generate model comparison reports"
+        help="Generate model comparison repo_forensic"
     )
 
     parser.add_argument(
@@ -456,7 +456,7 @@ def main():
         custom_output_dir = Path(args.output_dir)
         custom_output_dir.mkdir(parents=True, exist_ok=True)
         PLOTS_DIR = custom_output_dir / "plots"
-        REPORTS_DIR = custom_output_dir / "reports"
+        REPORTS_DIR = custom_output_dir / "repo_forensic"
         PLOTS_DIR.mkdir(exist_ok=True)
         REPORTS_DIR.mkdir(exist_ok=True)
         logging.info(f"Using custom output directory: {custom_output_dir}")
@@ -493,9 +493,9 @@ def main():
             if plot_predictions_vs_ground_truth(prediction_file, annotate=args.annotate_graphs):
                 processed_items["prediction_plots"] += 1
 
-    # Generate model comparison reports
+    # Generate model comparison repo_forensic
     if args.model_comparison or args.all:
-        logging.info("Generating model comparison reports...")
+        logging.info("Generating model comparison repo_forensic...")
         results_files = list(config.OUTPUT_DIR.glob("cross_validation_results_*.csv"))
 
         if not results_files:
@@ -518,7 +518,7 @@ def main():
     logging.info("=== Visualization and Reporting Summary ===")
     logging.info(f"Training history plots: {processed_items['history_plots']}")
     logging.info(f"Prediction plots: {processed_items['prediction_plots']}")
-    logging.info(f"Model comparison reports: {processed_items['comparison_reports']}")
+    logging.info(f"Model comparison repo_forensic: {processed_items['comparison_reports']}")
     logging.info(f"Model milestones: {processed_items['milestones']}")
     logging.info("==========================================")
 

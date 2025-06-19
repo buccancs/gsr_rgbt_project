@@ -10,16 +10,15 @@ import argparse
 import logging
 import re
 import subprocess
+# Add project root to path for absolute imports
+import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Optional
 
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import seaborn as sns
 
-# Add project root to path for absolute imports
-import sys
 project_root = Path(__file__).resolve().parents[2]
 sys.path.append(str(project_root))
 
@@ -33,7 +32,7 @@ logging.basicConfig(
 
 # Constants
 PLOTS_DIR = Path("plots")
-REPORTS_DIR = Path("reports")
+REPORTS_DIR = Path("repo_forensic")
 
 
 def get_git_commit_hash() -> str:
@@ -50,7 +49,8 @@ def get_git_commit_hash() -> str:
         return "unknown"
 
 
-def load_all_cv_results(base_output_dir: Path, experiment_pattern: str = "cross_validation_results_*.csv") -> Optional[pd.DataFrame]:
+def load_all_cv_results(base_output_dir: Path, experiment_pattern: str = "cross_validation_results_*.csv") -> Optional[
+    pd.DataFrame]:
     """
     Loads all cross-validation result CSVs from a base directory, potentially
     matching a pattern to distinguish different experiment sets or model types.
@@ -106,7 +106,8 @@ def load_all_cv_results(base_output_dir: Path, experiment_pattern: str = "cross_
     return pd.concat(all_dfs, ignore_index=True)
 
 
-def load_all_history_files(base_output_dir: Path, experiment_pattern: str = "*_history.json") -> Optional[Dict[str, pd.DataFrame]]:
+def load_all_history_files(base_output_dir: Path, experiment_pattern: str = "*_history.json") -> Optional[
+    Dict[str, pd.DataFrame]]:
     """
     Loads all training history JSON files from a base directory.
 
@@ -252,7 +253,8 @@ def plot_metric_scatter(df_all_results: pd.DataFrame, x_metric: str, y_metric: s
         output_dir (Path): Directory to save the plot
     """
     if df_all_results.empty or x_metric not in df_all_results.columns or y_metric not in df_all_results.columns:
-        logging.warning(f"Cannot plot scatter for metrics '{x_metric}' vs '{y_metric}'. Data missing or metrics not found.")
+        logging.warning(
+            f"Cannot plot scatter for metrics '{x_metric}' vs '{y_metric}'. Data missing or metrics not found.")
         return
 
     plt.figure(figsize=(10, 8))
@@ -265,10 +267,10 @@ def plot_metric_scatter(df_all_results: pd.DataFrame, x_metric: str, y_metric: s
 
     # Add labels for each point
     for i, row in summary_stats.iterrows():
-        plt.annotate(row['model_run_id'], 
-                    (row[x_metric], row[y_metric]),
-                    xytext=(5, 5),
-                    textcoords='offset points')
+        plt.annotate(row['model_run_id'],
+                     (row[x_metric], row[y_metric]),
+                     xytext=(5, 5),
+                     textcoords='offset points')
 
     plt.title(f'{y_metric.upper()} vs {x_metric.upper()} Across Model Runs')
     plt.xlabel(x_metric.upper())
@@ -297,8 +299,8 @@ def generate_comparison_report(df_all_results: pd.DataFrame, output_dir: Path):
         return
 
     # Create a summary of all metrics by model_run_id
-    metrics = [col for col in df_all_results.columns 
-               if col not in ['fold', 'subject', 'model_run_id'] 
+    metrics = [col for col in df_all_results.columns
+               if col not in ['fold', 'subject', 'model_run_id']
                and pd.api.types.is_numeric_dtype(df_all_results[col])]
 
     # Calculate mean and std for each metric by model_run_id
@@ -338,10 +340,10 @@ def parse_args():
     )
 
     parser.add_argument(
-        '--reports-dir',
+        '--repo_forensic-dir',
         type=str,
-        default='reports',
-        help='Directory to save comparison reports'
+        default='repo_forensic',
+        help='Directory to save comparison repo_forensic'
     )
 
     parser.add_argument(
@@ -408,7 +410,7 @@ def main():
             # Create scatter plots for pairs of metrics
             metrics = [m for m in args.plot_metrics if m in df_all_results.columns]
             for i, x_metric in enumerate(metrics):
-                for y_metric in metrics[i+1:]:
+                for y_metric in metrics[i + 1:]:
                     plot_metric_scatter(df_all_results, x_metric, y_metric, plots_dir)
 
         # Generate comparison report

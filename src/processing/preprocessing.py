@@ -388,25 +388,44 @@ def extract_multi_roi_signals(frame: np.ndarray, rois: Dict[str, Tuple[int, int,
 
 def process_frame_with_multi_roi(frame: np.ndarray) -> Dict[str, np.ndarray]:
     """
-    Processes a video frame to extract signals from multiple ROIs.
+    Processes a video frame to extract signals from multiple physiologically relevant ROIs.
 
-    This function detects hand landmarks in the frame, defines multiple ROIs,
-    and extracts signals from each ROI.
+    This function implements the Multi-ROI approach, which is a significant improvement
+    over the legacy single ROI method. It uses MediaPipe hand landmark detection to
+    identify key points on the hand, then defines multiple regions of interest (ROIs)
+    at physiologically significant locations:
+    - Index finger base (high concentration of sweat glands)
+    - Ring finger base (strong vascular patterns)
+    - Center of the palm (stable reference point)
+
+    The function extracts the mean RGB/thermal values from each ROI, providing a
+    richer feature set for machine learning models.
 
     Args:
-        frame (np.ndarray): The input video frame.
+        frame (np.ndarray): The input video frame (RGB or thermal).
 
     Returns:
         Dict[str, np.ndarray]: Dictionary mapping ROI names to arrays containing
                               the mean value for each channel (e.g., [R, G, B]).
                               Returns an empty dictionary if no hand is detected.
+
+    Note:
+        This function is more robust than the legacy `detect_palm_roi` function,
+        as it can handle hand movements and different hand orientations.
     """
     # Detect hand landmarks
     hand_landmarks_list = detect_hand_landmarks(frame)
 
-    if not hand_landmarks_list or len(hand_landmarks_list) == 0:
+    if not hand_landmarks_list:
+        logging.warning("Hand landmark detection failed. Cannot extract multi-ROI signals.")
+        return {}
+
+    if len(hand_landmarks_list) == 0:
         logging.warning("No hands detected in the frame. Cannot extract multi-ROI signals.")
         return {}
+
+    if len(hand_landmarks_list) > 1:
+        logging.info(f"Multiple hands detected ({len(hand_landmarks_list)}). Using the first hand for ROI extraction.")
 
     # Use the first detected hand
     hand_landmarks = hand_landmarks_list[0]

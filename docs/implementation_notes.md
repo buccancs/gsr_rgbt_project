@@ -1,15 +1,25 @@
-# Implementation Notes: Data Synchronization and Model Comparison Improvements
+# Implementation Notes: Comprehensive Improvements to the GSR-RGBT Project
 
 ## Overview
 
-This document outlines the changes made to improve data synchronization, feature engineering, and model comparison in the GSR-RGBT project. These changes address several key issues identified in the codebase:
+This document outlines the comprehensive improvements made to the GSR-RGBT project, addressing several key issues identified through code reviews and testing. The improvements span multiple areas including data acquisition, synchronization, feature engineering, and model comparison.
 
+### Key Issues Addressed
+
+#### Data Acquisition and Synchronization
 1. Lack of proper timestamp logging for video frames
 2. Synthetic timestamp generation in feature engineering
-3. Limited support for dual-stream models with thermal data
-4. Basic model_run_id extraction in experiment comparison
-5. Broad exception handling in DataLogger
-6. Missing dependencies in requirements.txt
+3. Reliance on "optimistic" software-based synchronization
+
+#### Feature Engineering and Processing
+1. Limited support for dual-stream models with thermal data
+2. Brittle ROI detection that relied on fixed regions
+3. Potential data leakage in the feature engineering pipeline
+
+#### Model Training and Evaluation
+1. Basic model_run_id extraction in experiment comparison
+2. Broad exception handling in DataLogger
+3. Missing dependencies in requirements.txt
 
 ## Changes Made
 
@@ -55,7 +65,7 @@ The `create_dataset_from_session` function in `src/processing/feature_engineerin
   ```python
   rgb_timestamps_path = session_path / "rgb_timestamps.csv"
   thermal_timestamps_path = session_path / "thermal_timestamps.csv"
-  
+
   if rgb_timestamps_path.exists():
       try:
           rgb_timestamps_df = pd.read_csv(rgb_timestamps_path)
@@ -105,7 +115,7 @@ The `create_dataset_from_session` function now supports thermal video data:
   if use_thermal:
       thermal_df = pd.DataFrame(thermal_features, columns=["THERMAL_B", "THERMAL_G", "THERMAL_R"])
       thermal_df["timestamp"] = thermal_timestamps
-      
+
       # ... align and merge dataframes ...
   ```
 
@@ -114,7 +124,7 @@ The `create_dataset_from_session` function now supports thermal video data:
   if use_thermal:
       # Check if this is being called from a dual-stream model context
       # ... check caller frame ...
-      
+
       if is_dual_stream:
           # Assuming the first 3 features are RGB and the next 3 are thermal
           X_rgb = X[:, :, :3]  # All windows, all timesteps, first 3 features (RGB)
@@ -122,7 +132,59 @@ The `create_dataset_from_session` function now supports thermal video data:
           return (X_rgb, X_thermal), y
   ```
 
-### 4. Improved Model Run ID Extraction in Experiment Comparison
+### 4. Enhanced ROI Detection with MediaPipe
+
+The original implementation relied on a simple `detect_palm_roi` function that often fell back to a fixed, centered rectangle when hand detection failed. This approach was brittle and could lead to extracting signals from irrelevant parts of the frame if the hand moved.
+
+We've implemented a robust Multi-ROI approach using MediaPipe hand landmarks:
+
+- **Multiple Regions of Interest**: Instead of a single ROI, we now extract signals from three physiologically significant regions:
+  - Index finger base (high concentration of sweat glands)
+  - Ring finger base (strong vascular patterns)
+  - Center of the palm (stable reference point)
+
+- **Robust Hand Tracking**: MediaPipe provides accurate hand landmark detection that is resilient to hand movements and lighting changes.
+
+- **Richer Feature Set**: By combining signals from multiple ROIs, we create a more comprehensive feature vector that captures more information about the hand's physiological state.
+
+Implementation details:
+- Modified `create_dataset_from_session` to use `process_frame_with_multi_roi` instead of `detect_palm_roi`
+- Updated the feature column naming scheme to reflect the Multi-ROI approach
+- Ensured both RGB and thermal video processing use the same Multi-ROI approach
+
+### 5. Improved Data Synchronization
+
+The original system relied on "optimistic" software-based synchronization, with each component generating its own timestamps. This could lead to drift between data streams, especially under system load, potentially causing misalignment between video features and GSR values.
+
+We've implemented a centralized timestamp authority:
+
+- **TimestampThread Class**: A high-priority thread that emits timestamps at a fast, consistent rate (200Hz by default)
+- **Shared Timestamp Source**: All capture components now use timestamps from this central authority
+- **High-Resolution Timing**: Using `time.perf_counter_ns()` for nanosecond precision
+
+Implementation details:
+- Created a new `TimestampThread` class in `src/utils/timestamp_thread.py`
+- Updated the `Application` class to create, start, and stop the timestamp thread
+- Modified the capture thread connections to use the centralized timestamps
+
+### 6. Refined Feature Engineering
+
+The feature engineering pipeline had two significant issues:
+1. It didn't fully utilize the Multi-ROI approach that was already implemented in the codebase
+2. It included GSR_Tonic as a feature, which gave the model a "cheat sheet" by providing a modified version of the target
+
+We've refined the feature engineering pipeline:
+
+- **Full Multi-ROI Integration**: The pipeline now properly extracts and processes signals from multiple ROIs
+- **Removed Data Leakage**: GSR_Tonic has been removed from the feature set to ensure the model learns from video features only
+- **Improved Dual-Stream Support**: Updated the code that reshapes features for dual-stream models to handle the new feature structure
+
+Implementation details:
+- Updated the feature column generation to create columns for each ROI and channel
+- Removed GSR_Tonic from the feature set
+- Modified the dual-stream feature reshaping to use column name prefixes instead of fixed indices
+
+### 7. Improved Model Run ID Extraction in Experiment Comparison
 
 The `load_all_cv_results` function in `src/scripts/compare_experiments.py` has been updated to:
 
@@ -137,7 +199,7 @@ The `load_all_cv_results` function in `src/scripts/compare_experiments.py` has b
           model_run_id = f"{experiment_set_name}_{model_name_from_file}"
   ```
 
-### 5. Updated Dependencies
+### 8. Updated Dependencies
 
 The `requirements.txt` file has been updated to include:
 
@@ -160,10 +222,36 @@ These changes significantly improve the project in several ways:
 
 ## Future Considerations
 
-While these changes address the immediate issues, there are some additional improvements that could be considered in the future:
+While these improvements address the most critical issues, there are additional enhancements that could further improve the project:
 
 1. **Experiment Tracking Integration**: Integrating a dedicated experiment tracking tool like MLflow or Weights & Biases would provide a more comprehensive solution for tracking and comparing experiments.
 
 2. **Further Modularization of Feature Engineering**: The feature extraction and processing could be further modularized to make it easier to add new feature types or processing methods.
 
 3. **Automated Testing**: Adding automated tests for the new functionality would help ensure that the changes continue to work correctly as the codebase evolves.
+
+4. **Experimental Protocol Control**: Adding a Protocol Control panel to the GUI with task name display and countdown timer to better guide the data collection process.
+
+5. **Event Marking**: Implementing a `log_event` function in the DataLogger to mark experimental events, which would be useful for data analysis.
+
+6. **Advanced Fusion Techniques**: Exploring more sophisticated methods for fusing RGB and thermal features to better leverage the complementary information.
+
+7. **Thermal-Specific Features**: Extracting temperature-based features from thermal data instead of treating it like RGB data, which would better utilize the unique information provided by thermal imaging.
+
+8. **Hardware Synchronization**: Implementing a hardware-based synchronization system (e.g., Arduino-based LED flash) for even more precise temporal alignment of data streams.
+
+## Conclusion
+
+The improvements described in this document have significantly enhanced the GSR-RGBT project in several key areas:
+
+1. **Data Quality**: By implementing proper timestamp logging, a centralized timestamp authority, and the Multi-ROI approach, we've improved the quality and reliability of the data collected and processed by the system.
+
+2. **Feature Richness**: The Multi-ROI approach and improved thermal data support have enhanced the feature set available for machine learning models, potentially leading to better prediction accuracy.
+
+3. **Model Training**: Removing data leakage and improving the experiment comparison functionality have made the model training process more robust and the results more reliable.
+
+4. **Code Quality**: Enhanced error handling, better resource management, and more specific exception handling have improved the overall robustness of the codebase.
+
+5. **Documentation**: Comprehensive documentation of the improvements and future considerations provides a clear roadmap for ongoing development.
+
+These enhancements build on the solid foundation of the original implementation and address the most critical issues identified through code reviews and testing. The project is now better positioned to achieve its research goals of contactless GSR prediction from RGB and thermal video streams.
