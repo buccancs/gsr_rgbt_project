@@ -1,33 +1,34 @@
-Contactless GSR Estimation from RGB-Thermal Video
+# Contactless GSR Estimation from RGB-Thermal Video
+
 This repository contains the complete software implementation for the research project focused on estimating Galvanic
 Skin Response (GSR) from synchronized RGB and thermal video streams. The project includes a data acquisition application
 with a graphical user interface (GUI) and a full machine learning pipeline for data processing, model training, and
 evaluation.
 
-Project Architecture
+## Project Architecture
+
 The project is structured into two main parts:
 
-Data Acquisition Application (src/): A PyQt5-based application for collecting synchronized multimodal data.
+### Data Acquisition Application (src/)
 
-main.py: The main entry point that runs the GUI application.
+A PyQt5-based application for collecting synchronized multimodal data.
 
-gui/: Defines the main window and UI components.
+- **main.py**: The main entry point that runs the GUI application.
+- **gui/**: Defines the main window and UI components.
+- **capture/**: Contains threaded modules for video and physiological sensor data capture.
+- **utils/**: Includes helper classes like the DataLogger.
+- **config.py**: A centralized file for all hardware and application settings.
 
-capture/: Contains threaded modules for video and physiological sensor data capture.
+### Machine Learning Pipeline (src/processing, src/ml_models, src/scripts)
 
-utils/: Includes helper classes like the DataLogger.
+A series of scripts to process the collected data, train a predictive model, and evaluate its performance.
 
-config.py: A centralized file for all hardware and application settings.
-
-Machine Learning Pipeline (src/processing, src/ml_models, src/scripts): A series of scripts to process the collected
-data, train a predictive model, and evaluate its performance.
-
-processing/: Modules for loading, preprocessing, and creating feature windows from the raw data.
+- **processing/**: Modules for loading, preprocessing, and creating feature windows from the raw data.
   - data_loader.py: Loads GSR data and video frames from session recordings.
   - preprocessing.py: Processes raw data, including Multi-ROI detection and extraction using MediaPipe.
   - feature_engineering.py: Creates feature windows from processed data.
 
-ml_models/: Defines the neural network architectures and model configuration system.
+- **ml_models/**: Defines the neural network architectures and model configuration system.
   - model_interface.py: Provides a common interface for all models, regardless of framework.
   - models.py: Implements TensorFlow/Keras model architectures (legacy support).
   - pytorch_models.py: Implements PyTorch versions of LSTM, Autoencoder, and VAE models.
@@ -36,73 +37,82 @@ ml_models/: Defines the neural network architectures and model configuration sys
   - pytorch_resnet_models.py: Implements ResNet models for time series data.
   - model_config.py: Provides a flexible configuration system for model hyperparameters.
 
-scripts/: Contains the high-level scripts for training, inference, and evaluation.
+- **scripts/**: Contains the high-level scripts for training, inference, and evaluation.
 
-Setup and Installation
+## Setup and Installation
+
 Follow these steps to set up the project environment.
 
-1. Clone the Repository
-   Clone this repository to your local machine.
+### 1. Clone the Repository
 
-git clone [https://github.com/your-username/gsr-rgbt-project.git](https://github.com/your-username/gsr-rgbt-project.git)
+Clone this repository to your local machine.
+
+```bash
+git clone https://github.com/your-username/gsr-rgbt-project.git
 cd gsr-rgbt-project
+```
 
-2. Create a Python Virtual Environment
-   It is strongly recommended to use a virtual environment to manage project dependencies and avoid conflicts.
+### 2. Create a Python Virtual Environment
 
+It is strongly recommended to use a virtual environment to manage project dependencies and avoid conflicts.
+
+```bash
 # Create the environment
-
 python -m venv .venv
 
 # Activate the environment
-
 # On macOS/Linux:
-
 source .venv/bin/activate
 
 # On Windows:
-
 .venv\Scripts\activate
+```
 
-3. Install Dependencies
-   Install all required Python packages using the requirements.txt file.
+### 3. Install Dependencies
 
+Install all required Python packages using the requirements.txt file.
+
+```bash
 pip install -r requirements.txt
+```
 
-4. Configure Hardware
-   Before running the data collection application, you must configure your hardware settings in src/config.py:
+### 4. Configure Hardware
 
-Camera IDs: Run a camera utility on your machine to find the correct device indices for your RGB and thermal cameras.
-Update RGB_CAMERA_ID and THERMAL_CAMERA_ID accordingly.
+Before running the data collection application, you must configure your hardware settings in src/config.py:
 
-GSR Sensor: If you are using a physical Shimmer sensor, set GSR_SIMULATION_MODE = False and update GSR_SENSOR_PORT to
-the correct serial port (e.g., 'COM3' on Windows).
+- **Camera IDs**: Run a camera utility on your machine to find the correct device indices for your RGB and thermal cameras.
+  Update RGB_CAMERA_ID and THERMAL_CAMERA_ID accordingly.
 
-How to Use the Pipeline
+- **GSR Sensor**: If you are using a physical Shimmer sensor, set GSR_SIMULATION_MODE = False and update GSR_SENSOR_PORT to
+  the correct serial port (e.g., 'COM3' on Windows).
+
+## How to Use the Pipeline
+
 The project pipeline consists of three main stages, executed in sequence.
 
-Stage 1: Data Collection
+### Stage 1: Data Collection
+
 Run the GUI application to collect session data from participants.
 
+```bash
 python src/main.py
+```
 
-Launch the application.
+1. Launch the application.
+2. Enter a unique Subject ID in the input field.
+3. Click the Start Recording button to begin capturing video and GSR data.
+4. Follow your experimental protocol (guiding the participant through tasks).
+5. Click the Stop Recording button to end the session.
 
-Enter a unique Subject ID in the input field.
-
-Click the Start Recording button to begin capturing video and GSR data.
-
-Follow your experimental protocol (guiding the participant through tasks).
-
-Click the Stop Recording button to end the session.
-
-A new folder containing all recorded data for that session will be created in data/recordings/. Repeat for all
+A new folder containing all recorded data for that session will be created in `data/recordings/`. Repeat for all
 participants.
 
-Stage 2: Model Training
+### Stage 2: Model Training
+
 Once you have collected data for all subjects, you can either run the individual training script or use the config-driven pipeline execution script. Both support different model types and configurations through a flexible command-line interface.
 
-### Creating Example Configuration Files
+#### Creating Example Configuration Files
+
 First, create example configuration files for all supported model types:
 
 ```bash
@@ -111,49 +121,56 @@ python src/scripts/train_model.py --create-example-configs
 
 This will create YAML configuration files in the `configs/models/` directory that you can customize for your experiments.
 
-### Training with Default Configuration
+#### Training with Default Configuration
+
 To train a model using the default configuration (LSTM model with Leave-One-Subject-Out cross-validation):
 
 ```bash
 python src/scripts/train_model.py
 ```
 
-### Training with Custom Configuration
+#### Training with Custom Configuration
+
 To train a specific model type with a custom configuration:
 
 ```bash
 python src/scripts/train_model.py --model-type lstm --config-path configs/models/lstm_config.yaml
 ```
 
-### Using K-Fold Cross-Validation
+#### Using K-Fold Cross-Validation
+
 To use k-fold cross-validation instead of Leave-One-Subject-Out:
 
 ```bash
 python src/scripts/train_model.py --cv-folds 5
 ```
 
-### Specifying Validation Split
+#### Specifying Validation Split
+
 To specify the fraction of training data to use for validation:
 
 ```bash
 python src/scripts/train_model.py --validation-split 0.2
 ```
 
-### Saving Training Metadata
+#### Saving Training Metadata
+
 By default, the training script saves detailed metadata about the training process. This includes model configuration, preprocessing parameters, training parameters, and evaluation metrics. You can disable this feature if needed:
 
 ```bash
 python src/scripts/train_model.py --save-metadata false
 ```
 
-### Specifying Output Directory
+#### Specifying Output Directory
+
 To save models and results to a custom directory:
 
 ```bash
 python src/scripts/train_model.py --output-dir path/to/output
 ```
 
-### Using the Config-Driven Pipeline
+#### Using the Config-Driven Pipeline
+
 For a more streamlined experience, you can use the config-driven pipeline execution script, which handles all stages of the pipeline based on a single configuration file:
 
 ```bash
@@ -184,10 +201,12 @@ The training script will:
 - Generate logs for TensorBoard.
 - Save the final cross-validation performance metrics to a CSV file.
 
-Stage 3: Inference and Evaluation
+### Stage 3: Inference and Evaluation
+
 After training, you need to run inference on your test data and then evaluate the results. You can do this using individual scripts or the config-driven pipeline.
 
-### Running Inference
+#### Running Inference
+
 Use the inference script to generate predictions for a specific subject:
 
 ```bash
@@ -198,9 +217,10 @@ This script will:
 - Load the specified trained model and scaler
 - Process the data for the specified subject
 - Generate predictions
-- Save the results to a CSV file in data/recordings/predictions/
+- Save the results to a CSV file in `data/recordings/predictions/`
 
-### Running Evaluation and Visualization
+#### Running Evaluation and Visualization
+
 After generating predictions, run the visualization script to create plots and reports:
 
 ```bash
@@ -227,7 +247,7 @@ The script generates and saves various plots:
 - Multi-ROI visualization on sample frames
 - All plots can be annotated with model configuration details, metrics, and timestamps
 
-All output plots are saved to data/recordings/evaluation_plots/ by default, or to the specified output directory.
+All output plots are saved to `data/recordings/evaluation_plots/` by default, or to the specified output directory.
 
 ## Model Configuration System
 
