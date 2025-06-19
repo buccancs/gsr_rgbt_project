@@ -1,17 +1,17 @@
-# src/scripts/train_model.py
+# src/scripts/inference.py
 
 import logging
+import argparse
 
 # --- Import project modules ---
 # Add the project root to the Python path to allow for absolute imports
 import sys
 from pathlib import Path
 
-import joblib  # Added for saving the scaler
+import joblib
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from sklearn.model_selection import LeaveOneGroupOut
 from sklearn.preprocessing import StandardScaler
 
 project_root = Path(__file__).resolve().parents[2]
@@ -19,7 +19,8 @@ sys.path.append(str(project_root))
 
 from src import config
 from src.processing.feature_engineering import create_dataset_from_session
-from src.ml_models.models import build_lstm_model  # Or other models
+from src.ml_models.models import build_lstm_model, build_ae_model, build_vae_model
+from src.ml_models.model_config import ModelConfig
 
 # --- Setup logging ---
 logging.basicConfig(
@@ -28,157 +29,196 @@ logging.basicConfig(
 )
 
 
-def load_all_session_data(
-    data_dir: Path, gsr_sampling_rate: int, video_fps: int
+def load_session_data(
+    session_path: Path, gsr_sampling_rate: int, video_fps: int
 ) -> tuple:
     """
-    Loads and processes data from all session directories.
+    Loads and processes data from a single session directory.
 
     Args:
-        data_dir (Path): The root directory containing all subject session folders.
+        session_path (Path): The directory containing the session data.
         gsr_sampling_rate (int): The sampling rate of the GSR sensor.
         video_fps (int): The FPS of the video recordings.
 
     Returns:
-        A tuple containing (all_X, all_y, all_groups), where 'groups' is an
-        array of subject IDs for cross-validation.
+        A tuple containing (X, y) for the session, or (None, None) if processing fails.
     """
-    all_X, all_y, all_groups = [], [], []
+    if not session_path.exists() or not session_path.is_dir():
+        logging.error(f"Session directory not found: {session_path}")
+        return None, None
 
-    session_paths = [
-        p for p in data_dir.iterdir() if p.is_dir() and p.name.startswith("Subject_")
-    ]
-    if not session_paths:
-        logging.error(
-            f"No session directories found in {data_dir}. Cannot proceed with training."
-        )
-        return None, None, None
+    subject_id = session_path.name.split("_")[1]
+    logging.info(f"--- Processing session for subject: {subject_id} ---")
 
-    for session_path in sorted(session_paths):
-        subject_id = session_path.name.split("_")[1]
-        logging.info(f"--- Processing session for subject: {subject_id} ---")
+    dataset = create_dataset_from_session(
+        session_path, gsr_sampling_rate, video_fps
+    )
 
-        dataset = create_dataset_from_session(
-            session_path, gsr_sampling_rate, video_fps
-        )
+    if not dataset:
+        logging.error(f"Failed to process session: {session_path}")
+        return None, None
 
-        if dataset:
-            X, y = dataset
-            all_X.append(X)
-            all_y.append(y)
-            # Create a group identifier for each sample from this subject
-            all_groups.extend([subject_id] * len(y))
+    return dataset
 
-    if not all_X:
-        logging.error("Failed to process any sessions. No data available for training.")
-        return None, None, None
 
-    return np.vstack(all_X), np.concatenate(all_y), np.array(all_groups)
+def parse_arguments():
+    """
+    Parse command line arguments for the inference script.
+
+    Returns:
+        argparse.Namespace: Parsed command line arguments
+    """
+    parser = argparse.ArgumentParser(description="Run inference with trained ML models")
+
+    # Model selection and configuration
+    parser.add_argument(
+        "--model-type", 
+        type=str, 
+        default="lstm",
+        choices=["lstm", "autoencoder", "vae"],
+        help="Type of model to use for inference"
+    )
+
+    parser.add_argument(
+        "--model-path", 
+        type=str, 
+        required=True,
+        help="Path to the trained model file (.keras)"
+    )
+
+    parser.add_argument(
+        "--scaler-path", 
+        type=str, 
+        required=True,
+        help="Path to the saved scaler file (.joblib)"
+    )
+
+    # Data selection
+    parser.add_argument(
+        "--subject-id", 
+        type=str, 
+        required=True,
+        help="ID of the subject to run inference on (e.g., 'Subject01')"
+    )
+
+    # Output options
+    parser.add_argument(
+        "--output-dir", 
+        type=str, 
+        default=None,
+        help="Directory to save prediction results (defaults to config.OUTPUT_DIR)"
+    )
+
+    return parser.parse_args()
 
 
 def main():
     """
-    Main training loop using Leave-One-Subject-Out (LOSO) cross-validation.
+    Main inference function to run predictions on a specific subject.
     """
-    logging.info("Starting model training pipeline...")
+    # Parse command line arguments
+    args = parse_arguments()
 
-    # 1. Load and process data from all subjects
-    X, y, groups = load_all_session_data(
-        data_dir=config.OUTPUT_DIR,
+    # Set output directory
+    output_dir = Path(args.output_dir) if args.output_dir else config.OUTPUT_DIR
+    predictions_dir = output_dir / "predictions"
+    predictions_dir.mkdir(exist_ok=True, parents=True)
+
+    # Construct the session path
+    subject_session_path = config.OUTPUT_DIR / f"Subject_{args.subject_id}"
+
+    logging.info(f"Starting inference for subject {args.subject_id} using {args.model_type} model")
+
+    # 1. Load the session data
+    X, y = load_session_data(
+        session_path=subject_session_path,
         gsr_sampling_rate=config.GSR_SAMPLING_RATE,
         video_fps=config.FPS,
     )
 
-    if X is None:
+    if X is None or y is None:
+        logging.error(f"Failed to load data for subject {args.subject_id}")
         return
 
-    # 2. Setup LOSO Cross-Validation
-    logo = LeaveOneGroupOut()
-    fold_results = []
+    logging.info(f"Loaded {len(X)} samples for subject {args.subject_id}")
 
-    models_dir = config.OUTPUT_DIR / "models"
-    models_dir.mkdir(exist_ok=True)
+    # 2. Load the scaler and scale the features
+    try:
+        scaler = joblib.load(args.scaler_path)
+        logging.info(f"Loaded scaler from {args.scaler_path}")
+    except Exception as e:
+        logging.error(f"Failed to load scaler: {e}")
+        return
 
-    logging.info(
-        f"Starting Leave-One-Subject-Out cross-validation for {len(np.unique(groups))} subjects."
-    )
+    # Scale the features
+    X_reshaped = X.reshape(-1, X.shape[-1])
+    X_scaled = scaler.transform(X_reshaped).reshape(X.shape)
 
-    for fold, (train_idx, test_idx) in enumerate(logo.split(X, y, groups)):
-        test_subject_id = groups[test_idx][0]
-        logging.info(f"--- Fold {fold+1}: Testing on subject {test_subject_id} ---")
+    # 3. Load the trained model
+    try:
+        model = tf.keras.models.load_model(args.model_path)
+        logging.info(f"Loaded model from {args.model_path}")
+    except Exception as e:
+        logging.error(f"Failed to load model: {e}")
+        return
 
-        X_train, X_test = X[train_idx], X[test_idx]
-        y_train, y_test = y[train_idx], y[test_idx]
+    # 4. Run inference
+    logging.info("Running inference...")
 
-        # 3. Scale the features
-        scaler = StandardScaler()
-        X_train_reshaped = X_train.reshape(-1, X_train.shape[-1])
-        scaler.fit(X_train_reshaped)
+    if args.model_type == "lstm":
+        # For LSTM models, predict the target values
+        predictions = model.predict(X_scaled)
 
-        X_train_scaled = scaler.transform(X_train_reshaped).reshape(X_train.shape)
-        X_test_scaled = scaler.transform(X_test.reshape(-1, X_test.shape[-1])).reshape(
-            X_test.shape
-        )
+        # Create a DataFrame with ground truth and predictions
+        results_df = pd.DataFrame({
+            "timestamp": range(len(y)),
+            "ground_truth": y.flatten(),
+            "prediction": predictions.flatten()
+        })
 
-        # --- ADDED: Save the scaler for this fold ---
-        scaler_path = models_dir / f"scaler_fold_{fold+1}_test_{test_subject_id}.joblib"
-        joblib.dump(scaler, scaler_path)
-        logging.info(f"Saved scaler for fold {fold+1} to {scaler_path}")
+        # Calculate metrics
+        mae = np.mean(np.abs(results_df["ground_truth"] - results_df["prediction"]))
+        mse = np.mean(np.square(results_df["ground_truth"] - results_df["prediction"]))
+        rmse = np.sqrt(mse)
 
-        # 4. Build and train the model
-        input_shape = (X_train_scaled.shape[1], X_train_scaled.shape[2])
-        model = build_lstm_model(input_shape=input_shape)
+        logging.info(f"Inference Results for subject {args.subject_id}:")
+        logging.info(f"  MAE: {mae:.4f}")
+        logging.info(f"  MSE: {mse:.4f}")
+        logging.info(f"  RMSE: {rmse:.4f}")
 
-        model_save_path = (
-            models_dir / f"model_fold_{fold+1}_test_{test_subject_id}.keras"
-        )
+    else:
+        # For autoencoder models, reconstruct the input
+        reconstructions = model.predict(X_scaled)
 
-        callbacks = [
-            tf.keras.callbacks.EarlyStopping(
-                monitor="val_loss", patience=10, restore_best_weights=True
-            ),
-            tf.keras.callbacks.ModelCheckpoint(
-                filepath=str(model_save_path), save_best_only=True, monitor="val_loss"
-            ),
-            tf.keras.callbacks.TensorBoard(
-                log_dir=str(models_dir / f"logs/fold_{fold+1}")
-            ),
-        ]
+        # Calculate reconstruction error
+        mse = np.mean(np.square(X_scaled - reconstructions))
+        mae = np.mean(np.abs(X_scaled - reconstructions))
 
-        history = model.fit(
-            X_train_scaled,
-            y_train,
-            epochs=100,
-            batch_size=32,
-            validation_split=0.2,
-            callbacks=callbacks,
-            verbose=2,
-        )
+        logging.info(f"Reconstruction Results for subject {args.subject_id}:")
+        logging.info(f"  MSE: {mse:.4f}")
+        logging.info(f"  MAE: {mae:.4f}")
 
-        # 5. Evaluate the model on the held-out subject
-        logging.info(f"Evaluating model on subject {test_subject_id}...")
-        test_loss, test_mse = model.evaluate(X_test_scaled, y_test, verbose=0)
+        # Create a simplified results DataFrame for autoencoders
+        results_df = pd.DataFrame({
+            "timestamp": range(len(X)),
+            "reconstruction_mse": np.mean(np.square(X_scaled - reconstructions), axis=(1, 2)),
+            "reconstruction_mae": np.mean(np.abs(X_scaled - reconstructions), axis=(1, 2))
+        })
 
-        logging.info(
-            f"Test Results for subject {test_subject_id}: MAE Loss = {test_loss:.4f}, MSE = {test_mse:.4f}"
-        )
-        fold_results.append(
-            {"subject": test_subject_id, "mae": test_loss, "mse": test_mse}
-        )
+    # 5. Save the results
+    prediction_file = predictions_dir / f"predictions_{args.subject_id}_{args.model_type}.csv"
+    results_df.to_csv(prediction_file, index=False)
+    logging.info(f"Saved prediction results to {prediction_file}")
 
-    # 6. Report final results
-    results_df = pd.DataFrame(fold_results)
-    logging.info("\n--- Cross-Validation Summary ---")
-    print(results_df)
-
-    mean_mae = results_df["mae"].mean()
-    std_mae = results_df["mae"].std()
-    logging.info(f"\nAverage MAE: {mean_mae:.4f} (+/- {std_mae:.4f})")
-
-    results_path = config.OUTPUT_DIR / "cross_validation_results.csv"
-    results_df.to_csv(results_path, index=False)
-    logging.info(f"Cross-validation results saved to {results_path}")
+    # 6. Return success
+    logging.info(f"Inference completed successfully for subject {args.subject_id}")
+    return results_df
 
 
 if __name__ == "__main__":
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - [%(levelname)s] - %(module)s - %(message)s",
+    )
     main()

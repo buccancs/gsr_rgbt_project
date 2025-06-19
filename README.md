@@ -24,7 +24,9 @@ data, train a predictive model, and evaluate its performance.
 
 processing/: Modules for loading, preprocessing, and creating feature windows from the raw data.
 
-ml_models/: Defines the neural network architectures (LSTM, AE, VAE).
+ml_models/: Defines the neural network architectures (LSTM, AE, VAE) and model configuration system.
+  - models.py: Implements the model architectures with configurable parameters.
+  - model_config.py: Provides a flexible configuration system for model hyperparameters.
 
 scripts/: Contains the high-level scripts for training, inference, and evaluation.
 
@@ -90,38 +92,158 @@ A new folder containing all recorded data for that session will be created in da
 participants.
 
 Stage 2: Model Training
-Once you have collected data for all subjects, run the training script. This script will automatically perform
-Leave-One-Subject-Out (LOSO) cross-validation.
+Once you have collected data for all subjects, run the training script. This script supports different model types and configurations through a flexible command-line interface.
 
+### Creating Example Configuration Files
+First, create example configuration files for all supported model types:
+
+```bash
+python src/scripts/train_model.py --create-example-configs
+```
+
+This will create YAML configuration files in the `configs/models/` directory that you can customize for your experiments.
+
+### Training with Default Configuration
+To train a model using the default configuration (LSTM model with Leave-One-Subject-Out cross-validation):
+
+```bash
 python src/scripts/train_model.py
+```
+
+### Training with Custom Configuration
+To train a specific model type with a custom configuration:
+
+```bash
+python src/scripts/train_model.py --model-type lstm --config-path configs/models/lstm_config.yaml
+```
+
+### Using K-Fold Cross-Validation
+To use k-fold cross-validation instead of Leave-One-Subject-Out:
+
+```bash
+python src/scripts/train_model.py --cv-folds 5
+```
+
+### Specifying Output Directory
+To save models and results to a custom directory:
+
+```bash
+python src/scripts/train_model.py --output-dir path/to/output
+```
+
+The training script will:
+
+- Load and process the data for all subjects found in data/recordings/.
+- Perform cross-validation based on the specified method (LOSO by default).
+- Save the trained model (.keras) and the corresponding data scaler (.joblib) for each fold.
+- Generate logs for TensorBoard.
+- Save the final cross-validation performance metrics to a CSV file.
+
+Stage 3: Inference and Evaluation
+After training, you need to run inference on your test data and then evaluate the results.
+
+### Running Inference
+Use the inference script to generate predictions for a specific subject:
+
+```bash
+python src/scripts/inference.py --model-type lstm --model-path data/recordings/models/lstm_fold_1_subject_Subject01.keras --scaler-path data/recordings/models/scaler_lstm_fold_1_subject_Subject01.joblib --subject-id Subject01
+```
 
 This script will:
+- Load the specified trained model and scaler
+- Process the data for the specified subject
+- Generate predictions
+- Save the results to a CSV file in data/recordings/predictions/
 
-Load and process the data for all subjects found in data/recordings/.
+### Running Evaluation
+After generating predictions, run the evaluation script to visualize the results:
 
-Iterate through each subject, training a model on all other subjects and testing on the held-out subject.
-
-Save the trained model (.keras) and the corresponding data scaler (.joblib) for each fold into data/recordings/models/.
-
-Generate logs for TensorBoard in data/recordings/models/logs/.
-
-Save the final cross-validation performance metrics to data/recordings/cross_validation_results.csv.
-
-Stage 3: Evaluation and Visualization
-After training, run the evaluation script to generate visualizations for a specific subject's performance.
-
+```bash
 python src/scripts/evaluate_model.py
+```
 
-The script is pre-configured to evaluate the results for Subject01 using the model from Fold 1. You can change the
-TEST_SUBJECT_ID inside the script to evaluate other subjects.
-
-It loads the predictions generated during the inference step (src/scripts/inference.py must be run first or its logic
-integrated here).
+The script is pre-configured to evaluate the results for Subject01. You can change the TEST_SUBJECT_ID inside the script to evaluate other subjects.
 
 It generates and saves two plots:
-
-A time-series plot comparing the predicted GSR vs. the ground truth.
-
-A Bland-Altman plot to assess the agreement between the two measurements.
+- A time-series plot comparing the predicted GSR vs. the ground truth.
+- A Bland-Altman plot to assess the agreement between the two measurements.
 
 All output plots are saved to data/recordings/evaluation_plots/.
+
+## Model Configuration System
+
+The project includes a flexible configuration system for machine learning models, allowing you to easily experiment with different architectures and hyperparameters.
+
+### Configuration Files
+Model configurations are stored in YAML files with the following structure:
+
+```yaml
+# Example LSTM configuration
+name: lstm
+layers:
+  - type: lstm
+    units: 64
+    return_sequences: true
+  - type: dropout
+    rate: 0.2
+  - type: lstm
+    units: 32
+    return_sequences: false
+  - type: dropout
+    rate: 0.2
+  - type: dense
+    units: 16
+    activation: relu
+  - type: dense
+    units: 1
+    activation: linear
+compile_params:
+  optimizer:
+    type: adam
+    learning_rate: 0.001
+  loss: mean_absolute_error
+  metrics:
+    - mean_squared_error
+fit_params:
+  epochs: 100
+  batch_size: 32
+  validation_split: 0.2
+  callbacks:
+    early_stopping:
+      monitor: val_loss
+      patience: 10
+      restore_best_weights: true
+    model_checkpoint:
+      save_best_only: true
+      monitor: val_loss
+    tensorboard: {}
+```
+
+### Using Configurations in Code
+You can load and modify configurations programmatically:
+
+```python
+from src.ml_models.model_config import ModelConfig
+
+# Load a default configuration
+config = ModelConfig("lstm")
+
+# Update specific parameters
+config.update_config({
+    "layers": [
+        {"type": "lstm", "units": 128, "return_sequences": True},
+        {"type": "dropout", "rate": 0.3},
+        # ... other layers
+    ],
+    "compile_params": {
+        "optimizer": {
+            "learning_rate": 0.0005
+        }
+    }
+})
+
+# Save the configuration to a file
+config.save_to_file(Path("configs/models/custom_lstm.yaml"))
+```
+
+This configuration system makes it easy to experiment with different model architectures and hyperparameters without modifying the code.
