@@ -209,7 +209,9 @@ def create_feature_windows(
 # --- Example Pipeline ---
 # This demonstrates how the functions would be used to create a final dataset from a session.
 def create_dataset_from_session(
-    session_path: Path, gsr_sampling_rate: int, video_fps: int
+    session_path: Path, gsr_sampling_rate: int, video_fps: int,
+    feature_columns: List[str] = None, target_column: str = "GSR_Phasic",
+    use_thermal: bool = False
 ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
     """
     Full pipeline to load, preprocess, align, and window data from a single session.
@@ -218,7 +220,7 @@ def create_dataset_from_session(
     session. It performs the following steps:
     1. Loads GSR data from the session
     2. Preprocesses the GSR signal to extract tonic and phasic components
-    3. Extracts RGB signals from video frames using palm ROI detection
+    3. Extracts RGB and optionally thermal signals from video frames using palm ROI detection
     4. Aligns the GSR and video signals to a common timeline
     5. Creates feature windows for machine learning
 
@@ -231,24 +233,29 @@ def create_dataset_from_session(
         gsr_sampling_rate (int): Sampling rate of the GSR signal in Hz.
             Used for preprocessing and windowing.
         video_fps (int): Frame rate of the video in frames per second.
-            Used to associate timestamps with video frames.
+            Used as fallback if timestamp files are not available.
+        feature_columns (List[str], optional): List of column names to use as features.
+            If None, defaults to ["RGB_B", "RGB_G", "RGB_R", "GSR_Tonic"] or includes thermal features.
+        target_column (str, optional): Column name to use as the prediction target.
+            Defaults to "GSR_Phasic".
+        use_thermal (bool, optional): Whether to include thermal video features.
+            Defaults to False.
 
     Returns:
         Optional[Tuple[np.ndarray, np.ndarray]]: If successful, returns a tuple containing:
             - X (np.ndarray): Feature windows with shape (n_windows, window_size, n_features)
+              or a tuple of arrays if dual-stream model is needed
             - y (np.ndarray): Target values with shape (n_windows,)
           If any step fails, returns None.
 
     Notes:
-        - The function uses the following feature columns: ["RGB_B", "RGB_G", "RGB_R", "GSR_Tonic"]
-        - The target column is "GSR_Phasic"
         - The window size is set to 5 seconds of data (5 * gsr_sampling_rate samples)
         - The step size is set to 50% overlap (gsr_sampling_rate // 2)
 
     Example:
         >>> from pathlib import Path
         >>> session_path = Path("data/recordings/Subject_01_20250101_000000")
-        >>> X, y = create_dataset_from_session(session_path, 32, 30)
+        >>> X, y = create_dataset_from_session(session_path, 32, 30, use_thermal=True)
         >>> if X is not None:
         ...     print(f"Created dataset with {X.shape[0]} windows")
         ... else:
@@ -266,15 +273,34 @@ def create_dataset_from_session(
         return None
 
     # 3. Extract Signals from Video
-    # In a real scenario, you'd iterate through both RGB and thermal generators
-    video_features = []
-    video_timestamps = []
+    rgb_features = []
+    rgb_timestamps = []
+    thermal_features = []
+    thermal_timestamps = []
 
-    frame_interval = 1.0 / video_fps
-    current_time_offset = 0.0
+    # Try to load timestamp files first
+    rgb_timestamps_path = session_path / "rgb_timestamps.csv"
+    thermal_timestamps_path = session_path / "thermal_timestamps.csv"
 
-    # For simplicity, we process only the RGB video here. A full implementation would merge
-    # features from both RGB and thermal streams.
+    rgb_timestamps_df = None
+    thermal_timestamps_df = None
+
+    if rgb_timestamps_path.exists():
+        try:
+            rgb_timestamps_df = pd.read_csv(rgb_timestamps_path)
+            logging.info(f"Loaded {len(rgb_timestamps_df)} RGB frame timestamps from file")
+        except Exception as e:
+            logging.warning(f"Failed to load RGB timestamps file: {e}")
+
+    if use_thermal and thermal_timestamps_path.exists():
+        try:
+            thermal_timestamps_df = pd.read_csv(thermal_timestamps_path)
+            logging.info(f"Loaded {len(thermal_timestamps_df)} thermal frame timestamps from file")
+        except Exception as e:
+            logging.warning(f"Failed to load thermal timestamps file: {e}")
+
+    # Process RGB video
+    frame_count = 0
     for success, frame in loader.get_rgb_video_generator():
         if not success:
             continue
@@ -283,31 +309,97 @@ def create_dataset_from_session(
         if roi:
             # Extract mean BGR values
             rgb_signal = extract_roi_signal(frame, roi)
-            video_features.append(rgb_signal)
+            rgb_features.append(rgb_signal)
 
-            # Associate a timestamp with this frame
-            frame_timestamp = processed_gsr["timestamp"].iloc[0] + pd.to_timedelta(
-                current_time_offset, unit="s"
-            )
-            video_timestamps.append(frame_timestamp)
-            current_time_offset += frame_interval
+            # Get timestamp for this frame
+            if rgb_timestamps_df is not None and frame_count < len(rgb_timestamps_df):
+                # Use the logged timestamp
+                timestamp_ns = rgb_timestamps_df.iloc[frame_count]["timestamp"]
+                # Convert to pandas timestamp
+                frame_timestamp = pd.Timestamp(timestamp_ns, unit='ns')
+            else:
+                # Fallback to synthetic timestamp based on frame rate
+                frame_interval = 1.0 / video_fps
+                frame_timestamp = processed_gsr["timestamp"].iloc[0] + pd.to_timedelta(
+                    frame_count * frame_interval, unit="s"
+                )
 
-    if not video_features:
-        logging.error("Could not extract any features from the video.")
+            rgb_timestamps.append(frame_timestamp)
+            frame_count += 1
+
+    if not rgb_features:
+        logging.error("Could not extract any features from the RGB video.")
         return None
 
-    # Create a DataFrame for the video features
-    video_df = pd.DataFrame(video_features, columns=["RGB_B", "RGB_G", "RGB_R"])
-    video_df["timestamp"] = video_timestamps
+    # Process thermal video if requested
+    if use_thermal:
+        frame_count = 0
+        for success, frame in loader.get_thermal_video_generator():
+            if not success:
+                continue
+
+            roi = detect_palm_roi(frame)
+            if roi:
+                # Extract mean values from thermal frame
+                thermal_signal = extract_roi_signal(frame, roi)
+                thermal_features.append(thermal_signal)
+
+                # Get timestamp for this frame
+                if thermal_timestamps_df is not None and frame_count < len(thermal_timestamps_df):
+                    # Use the logged timestamp
+                    timestamp_ns = thermal_timestamps_df.iloc[frame_count]["timestamp"]
+                    # Convert to pandas timestamp
+                    frame_timestamp = pd.Timestamp(timestamp_ns, unit='ns')
+                else:
+                    # Fallback to synthetic timestamp based on frame rate
+                    frame_interval = 1.0 / video_fps
+                    frame_timestamp = processed_gsr["timestamp"].iloc[0] + pd.to_timedelta(
+                        frame_count * frame_interval, unit="s"
+                    )
+
+                thermal_timestamps.append(frame_timestamp)
+                frame_count += 1
+
+        if use_thermal and not thermal_features:
+            logging.error("Could not extract any features from the thermal video.")
+            return None
+
+    # Create DataFrames for the video features
+    rgb_df = pd.DataFrame(rgb_features, columns=["RGB_B", "RGB_G", "RGB_R"])
+    rgb_df["timestamp"] = rgb_timestamps
+
+    if use_thermal:
+        thermal_df = pd.DataFrame(thermal_features, columns=["THERMAL_B", "THERMAL_G", "THERMAL_R"])
+        thermal_df["timestamp"] = thermal_timestamps
 
     # 4. Align Signals
-    aligned_df = align_signals(processed_gsr, video_df)
-    if aligned_df.empty:
+    aligned_rgb_df = align_signals(processed_gsr, rgb_df)
+    if aligned_rgb_df.empty:
         return None
 
+    if use_thermal:
+        aligned_thermal_df = align_signals(processed_gsr, thermal_df)
+        if aligned_thermal_df.empty:
+            return None
+
+        # Merge the aligned dataframes
+        # First, ensure they have the same timestamps
+        common_timestamps = aligned_rgb_df["timestamp"].intersection(aligned_thermal_df["timestamp"])
+        aligned_rgb_df = aligned_rgb_df[aligned_rgb_df["timestamp"].isin(common_timestamps)]
+        aligned_thermal_df = aligned_thermal_df[aligned_thermal_df["timestamp"].isin(common_timestamps)]
+
+        # Now merge them
+        merged_df = pd.merge(aligned_rgb_df, aligned_thermal_df, on="timestamp")
+        aligned_df = merged_df
+    else:
+        aligned_df = aligned_rgb_df
+
     # 5. Create Feature Windows
-    feature_columns = ["RGB_B", "RGB_G", "RGB_R", "GSR_Tonic"]  # Example features
-    target_column = "GSR_Phasic"  # The target we want to predict
+    if feature_columns is None:
+        if use_thermal:
+            feature_columns = ["RGB_B", "RGB_G", "RGB_R", "THERMAL_B", "THERMAL_G", "THERMAL_R", "GSR_Tonic"]
+        else:
+            feature_columns = ["RGB_B", "RGB_G", "RGB_R", "GSR_Tonic"]
 
     # Window size: e.g., 5 seconds of data (5s * 32Hz = 160 samples)
     window_size_samples = 5 * gsr_sampling_rate
@@ -316,6 +408,26 @@ def create_dataset_from_session(
     X, y = create_feature_windows(
         aligned_df, feature_columns, target_column, window_size_samples, step_size
     )
+
+    # For dual-stream models, we might need to reshape X to separate RGB and thermal features
+    if use_thermal:
+        # Check if this is being called from a dual-stream model context
+        # This is a safer approach than referencing a potentially undefined 'model' variable
+        caller_frame = sys._getframe(1)
+        caller_locals = caller_frame.f_locals
+        caller_globals = caller_frame.f_globals
+
+        # Check if the caller has a 'self' that is a dual-stream model
+        is_dual_stream = False
+        if 'self' in caller_locals and hasattr(caller_locals['self'], '__class__'):
+            class_name = caller_locals['self'].__class__.__name__
+            is_dual_stream = 'DualStream' in class_name or 'dual_stream' in class_name.lower()
+
+        if is_dual_stream:
+            # Assuming the first 3 features are RGB and the next 3 are thermal
+            X_rgb = X[:, :, :3]  # All windows, all timesteps, first 3 features (RGB)
+            X_thermal = X[:, :, 3:6]  # All windows, all timesteps, next 3 features (thermal)
+            return (X_rgb, X_thermal), y
 
     return X, y
 

@@ -46,6 +46,10 @@ class DataLogger:
         self.thermal_writer = None
         self.gsr_writer = None
         self.gsr_csv_file = None
+        self.rgb_timestamps_writer = None
+        self.rgb_timestamps_file = None
+        self.thermal_timestamps_writer = None
+        self.thermal_timestamps_file = None
 
         try:
             self.session_path.mkdir(parents=True, exist_ok=True)
@@ -73,6 +77,11 @@ class DataLogger:
             logging.warning("start_logging called, but logging is already active.")
             return
 
+        # Track initialization success for each component
+        video_writers_initialized = False
+        gsr_writer_initialized = False
+        timestamp_writers_initialized = False
+
         try:
             # Setup video writers for both streams
             rgb_video_path = self.session_path / "rgb_video.mp4"
@@ -84,6 +93,11 @@ class DataLogger:
                 str(thermal_video_path), self.video_fourcc, self.fps, frame_size_thermal
             )
 
+            if not self.rgb_writer.isOpened() or not self.thermal_writer.isOpened():
+                raise IOError("Failed to open one or both video writers")
+
+            video_writers_initialized = True
+
             # Setup CSV writer for GSR data
             gsr_csv_path = self.session_path / "gsr_data.csv"
             # Open file with write permissions and ensure it's closed properly
@@ -92,22 +106,95 @@ class DataLogger:
             # Write the header row for the CSV file
             self.gsr_writer.writerow(["system_timestamp", "shimmer_timestamp", "gsr_value"])
 
+            gsr_writer_initialized = True
+
+            # Setup CSV writers for frame timestamps
+            rgb_timestamps_path = self.session_path / "rgb_timestamps.csv"
+            thermal_timestamps_path = self.session_path / "thermal_timestamps.csv"
+
+            self.rgb_timestamps_file = open(rgb_timestamps_path, "w", newline="", encoding="utf-8")
+            self.rgb_timestamps_writer = csv.writer(self.rgb_timestamps_file)
+            self.rgb_timestamps_writer.writerow(["frame_number", "timestamp"])
+
+            self.thermal_timestamps_file = open(thermal_timestamps_path, "w", newline="", encoding="utf-8")
+            self.thermal_timestamps_writer = csv.writer(self.thermal_timestamps_file)
+            self.thermal_timestamps_writer.writerow(["frame_number", "timestamp"])
+
+            timestamp_writers_initialized = True
+
             self.is_logging = True
             logging.info("Logging has started. Video and CSV writers are ready.")
 
+        except IOError as e:
+            logging.error(f"I/O error initializing log files: {e}")
+            self.is_logging = False
+            self._cleanup_partial_initialization(video_writers_initialized, 
+                                               gsr_writer_initialized,
+                                               timestamp_writers_initialized)
         except Exception as e:
             logging.error(f"Failed to initialize log files: {e}")
             self.is_logging = False
+            self._cleanup_partial_initialization(video_writers_initialized, 
+                                               gsr_writer_initialized,
+                                               timestamp_writers_initialized)
 
-    def log_rgb_frame(self, frame):
-        """Writes a single RGB frame to the video file."""
+    def _cleanup_partial_initialization(self, video_initialized, gsr_initialized, timestamps_initialized):
+        """
+        Cleans up resources if initialization fails partway through.
+
+        Args:
+            video_initialized (bool): Whether video writers were successfully initialized
+            gsr_initialized (bool): Whether GSR writer was successfully initialized
+            timestamps_initialized (bool): Whether timestamp writers were successfully initialized
+        """
+        if video_initialized:
+            if self.rgb_writer:
+                self.rgb_writer.release()
+            if self.thermal_writer:
+                self.thermal_writer.release()
+
+        if gsr_initialized and self.gsr_csv_file:
+            self.gsr_csv_file.close()
+
+        if timestamps_initialized:
+            if self.rgb_timestamps_file:
+                self.rgb_timestamps_file.close()
+            if self.thermal_timestamps_file:
+                self.thermal_timestamps_file.close()
+
+    def log_rgb_frame(self, frame, timestamp=None, frame_number=None):
+        """
+        Writes a single RGB frame to the video file and logs its timestamp.
+
+        Args:
+            frame: The video frame to write
+            timestamp (float, optional): The high-resolution timestamp of the frame capture
+            frame_number (int, optional): The sequential number of the frame
+        """
         if self.rgb_writer and self.is_logging:
             self.rgb_writer.write(frame)
 
-    def log_thermal_frame(self, frame):
-        """Writes a single thermal frame to the video file."""
+            # Log the timestamp if provided
+            if timestamp is not None and self.rgb_timestamps_writer:
+                frame_num = frame_number if frame_number is not None else self.rgb_writer.get(cv2.CAP_PROP_POS_FRAMES)
+                self.rgb_timestamps_writer.writerow([frame_num, timestamp])
+
+    def log_thermal_frame(self, frame, timestamp=None, frame_number=None):
+        """
+        Writes a single thermal frame to the video file and logs its timestamp.
+
+        Args:
+            frame: The video frame to write
+            timestamp (float, optional): The high-resolution timestamp of the frame capture
+            frame_number (int, optional): The sequential number of the frame
+        """
         if self.thermal_writer and self.is_logging:
             self.thermal_writer.write(frame)
+
+            # Log the timestamp if provided
+            if timestamp is not None and self.thermal_timestamps_writer:
+                frame_num = frame_number if frame_number is not None else self.thermal_writer.get(cv2.CAP_PROP_POS_FRAMES)
+                self.thermal_timestamps_writer.writerow([frame_num, timestamp])
 
     def log_gsr_data(self, gsr_value: float, shimmer_timestamp: float):
         """
@@ -124,7 +211,7 @@ class DataLogger:
 
     def stop_logging(self):
         """
-        Releases all video writers and closes the CSV file.
+        Releases all video writers and closes the CSV files.
         This is a critical cleanup step to ensure data is saved correctly.
         """
         if not self.is_logging:
@@ -137,6 +224,10 @@ class DataLogger:
             self.thermal_writer.release()
         if self.gsr_csv_file:
             self.gsr_csv_file.close()
+        if self.rgb_timestamps_file:
+            self.rgb_timestamps_file.close()
+        if self.thermal_timestamps_file:
+            self.thermal_timestamps_file.close()
 
         self.is_logging = False
         logging.info(f"Logging stopped. All data saved in {self.session_path}")

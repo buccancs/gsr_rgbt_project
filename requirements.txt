@@ -9,3 +9,5 @@ pandas
 pyyaml
 mediapipe
 matplotlib
+PyQt5
+seaborn
