@@ -49,7 +49,7 @@ Clone this repository to your local machine.
 
 ```bash
 git clone https://github.com/your-username/gsr-rgbt-project.git
-cd gsr-rgbt-project
+cd gsr_rgbt_project
 ```
 
 ### 2. Create a Python Virtual Environment

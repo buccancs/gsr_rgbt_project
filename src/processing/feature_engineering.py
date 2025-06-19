@@ -305,11 +305,16 @@ def create_dataset_from_session(
         if not success:
             continue
 
-        roi = detect_palm_roi(frame)
-        if roi:
-            # Extract mean BGR values
-            rgb_signal = extract_roi_signal(frame, roi)
-            rgb_features.append(rgb_signal)
+        # Use the Multi-ROI approach to extract signals from multiple regions
+        roi_signals = process_frame_with_multi_roi(frame)
+        if roi_signals:
+            # Combine signals from all ROIs into a single feature vector
+            # This creates a richer feature set than just using a single ROI
+            combined_signal = []
+            for roi_name, signal in roi_signals.items():
+                combined_signal.extend(signal)
+
+            rgb_features.append(combined_signal)
 
             # Get timestamp for this frame
             if rgb_timestamps_df is not None and frame_count < len(rgb_timestamps_df):
@@ -338,11 +343,16 @@ def create_dataset_from_session(
             if not success:
                 continue
 
-            roi = detect_palm_roi(frame)
-            if roi:
-                # Extract mean values from thermal frame
-                thermal_signal = extract_roi_signal(frame, roi)
-                thermal_features.append(thermal_signal)
+            # Use the Multi-ROI approach to extract signals from multiple regions
+            roi_signals = process_frame_with_multi_roi(frame)
+            if roi_signals:
+                # Combine signals from all ROIs into a single feature vector
+                # This creates a richer feature set than just using a single ROI
+                combined_signal = []
+                for roi_name, signal in roi_signals.items():
+                    combined_signal.extend(signal)
+
+                thermal_features.append(combined_signal)
 
                 # Get timestamp for this frame
                 if thermal_timestamps_df is not None and frame_count < len(thermal_timestamps_df):
@@ -365,11 +375,30 @@ def create_dataset_from_session(
             return None
 
     # Create DataFrames for the video features
-    rgb_df = pd.DataFrame(rgb_features, columns=["RGB_B", "RGB_G", "RGB_R"])
+    # With Multi-ROI, we have more features per frame (3 channels x number of ROIs)
+    # Define column names based on ROI names and channels
+    roi_names = ["index_finger_base", "ring_finger_base", "palm_center"]
+    channels = ["B", "G", "R"]
+
+    # Create column names for RGB features
+    rgb_columns = []
+    for roi in roi_names:
+        for channel in channels:
+            rgb_columns.append(f"RGB_{roi}_{channel}")
+
+    # Create DataFrame for RGB features
+    rgb_df = pd.DataFrame(rgb_features, columns=rgb_columns)
     rgb_df["timestamp"] = rgb_timestamps
 
     if use_thermal:
-        thermal_df = pd.DataFrame(thermal_features, columns=["THERMAL_B", "THERMAL_G", "THERMAL_R"])
+        # Create column names for thermal features
+        thermal_columns = []
+        for roi in roi_names:
+            for channel in channels:
+                thermal_columns.append(f"THERMAL_{roi}_{channel}")
+
+        # Create DataFrame for thermal features
+        thermal_df = pd.DataFrame(thermal_features, columns=thermal_columns)
         thermal_df["timestamp"] = thermal_timestamps
 
     # 4. Align Signals
@@ -396,10 +425,17 @@ def create_dataset_from_session(
 
     # 5. Create Feature Windows
     if feature_columns is None:
+        # Start with all RGB columns
+        feature_columns = rgb_columns.copy()
+
+        # Add thermal columns if using thermal data
         if use_thermal:
-            feature_columns = ["RGB_B", "RGB_G", "RGB_R", "THERMAL_B", "THERMAL_G", "THERMAL_R", "GSR_Tonic"]
-        else:
-            feature_columns = ["RGB_B", "RGB_G", "RGB_R", "GSR_Tonic"]
+            feature_columns.extend(thermal_columns)
+
+        # Remove GSR_Tonic from features to avoid giving the model a "cheat sheet"
+        # The critique pointed out that including GSR_Tonic as a feature gives the model
+        # a modified version of the target, leading to artificially high performance
+        # Instead, we'll rely solely on the video-derived features
 
     # Window size: e.g., 5 seconds of data (5s * 32Hz = 160 samples)
     window_size_samples = 5 * gsr_sampling_rate
@@ -424,9 +460,18 @@ def create_dataset_from_session(
             is_dual_stream = 'DualStream' in class_name or 'dual_stream' in class_name.lower()
 
         if is_dual_stream:
-            # Assuming the first 3 features are RGB and the next 3 are thermal
-            X_rgb = X[:, :, :3]  # All windows, all timesteps, first 3 features (RGB)
-            X_thermal = X[:, :, 3:6]  # All windows, all timesteps, next 3 features (thermal)
+            # With our new Multi-ROI approach, we have more features
+            # We need to separate RGB and thermal features based on their column indices
+
+            # Get the indices of RGB and thermal features in the feature_columns list
+            rgb_indices = [i for i, col in enumerate(feature_columns) if col.startswith("RGB_")]
+            thermal_indices = [i for i, col in enumerate(feature_columns) if col.startswith("THERMAL_")]
+
+            # Extract RGB and thermal features based on their indices
+            X_rgb = X[:, :, rgb_indices]  # All windows, all timesteps, RGB features
+            X_thermal = X[:, :, thermal_indices]  # All windows, all timesteps, thermal features
+
+            logging.info(f"Dual-stream model detected. Reshaping features: X_rgb shape: {X_rgb.shape}, X_thermal shape: {X_thermal.shape}")
             return (X_rgb, X_thermal), y
 
     return X, y

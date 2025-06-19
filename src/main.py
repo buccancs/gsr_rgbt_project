@@ -12,6 +12,7 @@ from src.capture.video_capture import VideoCaptureThread
 from src.capture.thermal_capture import ThermalCaptureThread
 from src.capture.gsr_capture import GsrCaptureThread
 from src.utils.data_logger import DataLogger
+from src.utils.timestamp_thread import TimestampThread
 from src import config
 
 # --- Setup logging ---
@@ -34,6 +35,15 @@ class Application(QObject):
 
         # Create the main window
         self.main_window = MainWindow()
+
+        # Initialize the timestamp thread (centralized timestamp authority)
+        self.timestamp_thread = TimestampThread(frequency=200)  # 200Hz timestamp generation
+
+        # Store the latest timestamp
+        self.latest_timestamp = None
+
+        # Connect timestamp signal to update the latest timestamp
+        self.timestamp_thread.timestamp_generated.connect(self.update_latest_timestamp)
 
         # Initialize capture threads (not started yet)
         self.rgb_capture = VideoCaptureThread(
@@ -69,6 +79,16 @@ class Application(QObject):
             lambda frame, timestamp: self.main_window.update_video_feed(frame, self.main_window.thermal_video_label)
         )
 
+    @pyqtSlot(int)
+    def update_latest_timestamp(self, timestamp):
+        """
+        Update the latest timestamp from the timestamp thread.
+
+        Args:
+            timestamp (int): The latest timestamp in nanoseconds.
+        """
+        self.latest_timestamp = timestamp
+
     def start_recording(self):
         """Start all capture threads and initialize data logging."""
         try:
@@ -93,12 +113,16 @@ class Application(QObject):
                 frame_size_thermal=(config.FRAME_WIDTH, config.FRAME_HEIGHT)
             )
 
-            # Connect capture signals to data logger
+            # Start the timestamp thread first to ensure it's running before capture threads
+            self.timestamp_thread.start()
+            logging.info("Timestamp thread started")
+
+            # Connect capture signals to data logger with centralized timestamps
             self.rgb_capture.frame_captured.connect(
-                lambda frame, timestamp: self.data_logger.log_rgb_frame(frame)
+                lambda frame, _: self.data_logger.log_rgb_frame(frame, self.latest_timestamp)
             )
             self.thermal_capture.frame_captured.connect(
-                lambda frame, timestamp: self.data_logger.log_thermal_frame(frame)
+                lambda frame, _: self.data_logger.log_thermal_frame(frame, self.latest_timestamp)
             )
             self.gsr_capture.gsr_data_point.connect(self.data_logger.log_gsr_data)
 
@@ -128,6 +152,12 @@ class Application(QObject):
             self.thermal_capture.stop()
             self.gsr_capture.stop()
 
+            # Stop the timestamp thread
+            self.timestamp_thread.stop()
+
+            # Reset the latest timestamp
+            self.latest_timestamp = None
+
             # Wait for threads to finish
             if self.rgb_capture.isRunning():
                 self.rgb_capture.wait()
@@ -135,6 +165,9 @@ class Application(QObject):
                 self.thermal_capture.wait()
             if self.gsr_capture.isRunning():
                 self.gsr_capture.wait()
+            if self.timestamp_thread.isRunning():
+                self.timestamp_thread.wait()
+                logging.info("Timestamp thread stopped")
 
             # Disconnect signals from data logger
             if self.data_logger:
