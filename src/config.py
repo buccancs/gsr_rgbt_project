@@ -16,6 +16,7 @@ GEOMETRY = (
 # Use a system tool or a simple OpenCV script to list camera devices to find the correct IDs.
 RGB_CAMERA_ID = 0
 THERMAL_CAMERA_ID = 1
+THERMAL_SIMULATION_MODE = True  # Set to False when using a real thermal camera
 
 # --- Video Recording Settings ---
 # Frame rate should match the capabilities of your cameras.

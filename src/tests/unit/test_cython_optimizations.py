@@ -1,6 +1,5 @@
-# src/tests/test_cython_optimizations.py
+# src/tests/unit/test_cython_optimizations.py
 
-# --- Add project root to path for absolute imports ---
 import sys
 import unittest
 from pathlib import Path
@@ -8,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-project_root = Path(__file__).resolve().parents[2]
+project_root = Path(__file__).resolve().parents[3]
 sys.path.append(str(project_root))
 
 # Try to import Cython optimizations

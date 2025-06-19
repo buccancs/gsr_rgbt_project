@@ -322,12 +322,17 @@ class ModelConfig:
     configuration parameters.
     """
 
-    def __init__(self, config_name: str = None, config_path: Optional[Path] = None):
+    def __init__(self, config_name: str = None, config_path: Optional[Path] = None) -> None:
         """
         Initialize a model configuration.
 
+        This constructor loads a configuration either from a named default configuration
+        or from a YAML file. If both are provided, the file takes precedence.
+        If neither is provided, it defaults to the PyTorch LSTM configuration.
+
         Args:
-            config_name: Name of the default configuration to use (e.g., 'lstm', 'autoencoder', 'vae')
+            config_name: Name of the default configuration to use (e.g., 'lstm', 
+                         'autoencoder', 'vae')
             config_path: Path to a YAML configuration file
         """
         self.config = {}
@@ -351,11 +356,15 @@ class ModelConfig:
         """
         Resolve config name aliases to their actual configuration names.
 
+        This method checks if the provided name is an alias in the DEFAULT_CONFIGS
+        dictionary and returns the actual configuration name if it is.
+
         Args:
-            config_name: The configuration name or alias
+            config_name: The configuration name or alias to resolve
 
         Returns:
-            The resolved configuration name
+            str: The resolved configuration name (the actual config name if an alias
+                 was provided, otherwise the original name)
         """
         # Check if the name is an alias
         if config_name in DEFAULT_CONFIGS and isinstance(DEFAULT_CONFIGS[config_name], str):
@@ -366,8 +375,15 @@ class ModelConfig:
         """
         Load configuration from a YAML file.
 
+        This method attempts to load a configuration from the specified YAML file.
+        If the file cannot be loaded, it logs an error and falls back to the default
+        LSTM configuration.
+
         Args:
-            config_path: Path to the YAML configuration file
+            config_path: Path to the YAML configuration file to load from
+
+        Raises:
+            No exceptions are raised, errors are logged instead
         """
         try:
             with open(config_path, 'r') as f:
@@ -382,8 +398,15 @@ class ModelConfig:
         """
         Save the current configuration to a YAML file.
 
+        This method attempts to save the current configuration to the specified YAML file.
+        It creates any necessary parent directories if they don't exist.
+        If the file cannot be saved, it logs an error.
+
         Args:
             config_path: Path where the configuration will be saved
+
+        Raises:
+            No exceptions are raised, errors are logged instead
         """
         try:
             config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -397,8 +420,11 @@ class ModelConfig:
         """
         Get the current configuration.
 
+        This method returns a reference to the internal configuration dictionary.
+        Note that modifying the returned dictionary will modify the internal state.
+
         Returns:
-            The complete configuration dictionary
+            Dict[str, Any]: The complete configuration dictionary
         """
         return self.config
 
@@ -406,7 +432,12 @@ class ModelConfig:
         """
         Update the configuration with new values.
 
-        This method performs a deep update of nested dictionaries.
+        This method performs a deep update of nested dictionaries, meaning it will
+        recursively update nested dictionaries rather than replacing them entirely.
+        For example, if the current config has {'model_params': {'hidden_size': 64}}
+        and updates is {'model_params': {'dropout': 0.2}}, the result will be
+        {'model_params': {'hidden_size': 64, 'dropout': 0.2}} rather than
+        {'model_params': {'dropout': 0.2}}.
 
         Args:
             updates: Dictionary containing the updates to apply
@@ -417,9 +448,13 @@ class ModelConfig:
         """
         Recursively update a nested dictionary.
 
+        This helper method implements the deep update logic used by update_config.
+        It recursively traverses the update dictionary and updates the target dictionary,
+        preserving existing keys that aren't being updated.
+
         Args:
-            d: Dictionary to update
-            u: Dictionary with updates
+            d: Dictionary to update (modified in-place)
+            u: Dictionary with updates to apply
         """
         for k, v in u.items():
             if isinstance(v, dict) and k in d and isinstance(d[k], dict):
@@ -431,8 +466,11 @@ class ModelConfig:
         """
         Get the name of the current model configuration.
 
+        This method retrieves the 'name' field from the configuration.
+        If the field is not present, it returns 'unknown'.
+
         Returns:
-            The model name as a string
+            str: The model name as a string, or 'unknown' if not specified
         """
         return self.config.get("name", "unknown")
 
@@ -440,8 +478,12 @@ class ModelConfig:
         """
         Get the framework of the current model configuration.
 
+        This method retrieves the 'framework' field from the configuration.
+        If the field is not present, it defaults to 'pytorch'.
+
         Returns:
-            The framework name as a string (e.g., 'pytorch', 'tensorflow')
+            str: The framework name as a string (e.g., 'pytorch', 'tensorflow'),
+                 or 'pytorch' if not specified
         """
         return self.config.get("framework", "pytorch")  # Default to PyTorch
 
@@ -449,8 +491,14 @@ class ModelConfig:
         """
         Get the model architecture parameters.
 
+        This method extracts model architecture parameters based on the framework.
+        For PyTorch models, it returns the 'model_params' dictionary directly.
+        For TensorFlow models, it extracts parameters from the layer definitions
+        based on the model type (LSTM, Autoencoder, VAE).
+
         Returns:
-            Dictionary of model parameters
+            Dict[str, Any]: Dictionary of model parameters appropriate for the
+                           current framework and model type
         """
         # For PyTorch models
         if self.get_framework() == "pytorch":
@@ -481,8 +529,14 @@ class ModelConfig:
         """
         Get the optimizer parameters.
 
+        This method extracts optimizer parameters based on the framework.
+        For PyTorch models, it returns the 'optimizer_params' dictionary directly.
+        For TensorFlow models, it extracts parameters from the 'compile_params'
+        dictionary's 'optimizer' field.
+
         Returns:
-            Dictionary of optimizer parameters
+            Dict[str, Any]: Dictionary of optimizer parameters with standardized keys
+                           (e.g., 'type', 'lr') regardless of the framework
         """
         # For PyTorch models
         if self.get_framework() == "pytorch":
@@ -500,8 +554,12 @@ class ModelConfig:
         """
         Get the loss function name.
 
+        This method extracts the loss function name based on the framework.
+        For PyTorch models, it returns the 'loss_fn' field directly.
+        For TensorFlow models, it returns the 'loss' field from the 'compile_params' dictionary.
+
         Returns:
-            The loss function name as a string
+            str: The loss function name as a string (e.g., 'mse', 'mean_squared_error')
         """
         # For PyTorch models
         if self.get_framework() == "pytorch":
@@ -515,8 +573,13 @@ class ModelConfig:
         """
         Get the training parameters.
 
+        This method extracts training parameters based on the framework.
+        For PyTorch models, it returns the 'train_params' dictionary.
+        For TensorFlow models, it returns the 'fit_params' dictionary.
+
         Returns:
-            Dictionary of training parameters
+            Dict[str, Any]: Dictionary of training parameters including batch size,
+                           epochs, validation split, and early stopping settings
         """
         # For PyTorch models
         if self.get_framework() == "pytorch":
@@ -529,8 +592,13 @@ class ModelConfig:
         """
         Get the parameters for model.fit() (TensorFlow compatibility).
 
+        This method is specifically for TensorFlow models and retrieves the 'fit_params'
+        dictionary from the configuration. It's used when calling the TensorFlow model's
+        fit() method.
+
         Returns:
-            Dictionary of fit parameters
+            Dict[str, Any]: Dictionary of fit parameters for TensorFlow models,
+                           including batch size, epochs, validation split, and callbacks
         """
         return self.config.get("fit_params", {})
 
@@ -538,8 +606,13 @@ class ModelConfig:
         """
         Get the parameters for model.compile() (TensorFlow compatibility).
 
+        This method is specifically for TensorFlow models and retrieves the 'compile_params'
+        dictionary from the configuration. It's used when calling the TensorFlow model's
+        compile() method.
+
         Returns:
-            Dictionary of compile parameters
+            Dict[str, Any]: Dictionary of compile parameters for TensorFlow models,
+                           including optimizer, loss function, and metrics
         """
         return self.config.get("compile_params", {})
 
@@ -548,8 +621,11 @@ def list_available_configs() -> List[str]:
     """
     List all available default configurations.
 
+    This function returns a list of all configuration names defined in the DEFAULT_CONFIGS
+    dictionary, including both actual configurations and aliases.
+
     Returns:
-        List of configuration names
+        List[str]: List of all available configuration names and aliases
     """
     return list(DEFAULT_CONFIGS.keys())
 
@@ -558,8 +634,15 @@ def create_example_config_files(output_dir: Path) -> None:
     """
     Create example configuration files for all default model types.
 
+    This function creates YAML configuration files for each non-alias entry in
+    DEFAULT_CONFIGS. It creates the output directory if it doesn't exist and
+    saves each configuration as a separate file named '{model_type}_config.yaml'.
+
     Args:
         output_dir: Directory where the configuration files will be saved
+
+    Raises:
+        No exceptions are raised, errors are logged instead
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 

@@ -35,5 +35,11 @@ setup(
         "torch",
         "scikit-learn",
         "cython",
+        "neurokit2",
+        "pyshimmer",
+        "pyyaml",
+        "mediapipe",
+        "matplotlib",
+        "PyQt5",
     ],
 )

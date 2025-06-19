@@ -1,6 +1,7 @@
 # src/capture/video_capture.py
 
 import logging
+import sys
 import time
 
 import cv2
@@ -30,7 +31,7 @@ class VideoCaptureThread(QThread):
         finished (pyqtSignal): A signal emitted when the capture loop has finished.
     """
 
-    frame_captured = pyqtSignal(np.ndarray)
+    frame_captured = pyqtSignal(np.ndarray, float)
     finished = pyqtSignal()
 
     def __init__(self, camera_id: int, camera_name: str, fps: int, parent=None):
@@ -66,7 +67,11 @@ class VideoCaptureThread(QThread):
 
         try:
             # Attempt to open the video capture device
-            self.cap = cv2.VideoCapture(self.camera_id, cv2.CAP_DSHOW)
+            # Use cv2.CAP_DSHOW on Windows for better camera support
+            if sys.platform == "win32":
+                self.cap = cv2.VideoCapture(self.camera_id, cv2.CAP_DSHOW)
+            else:
+                self.cap = cv2.VideoCapture(self.camera_id)
 
             if not self.cap.isOpened():
                 logging.error(
@@ -85,8 +90,9 @@ class VideoCaptureThread(QThread):
                     time.sleep(0.01)  # Prevent busy-waiting on error
                     continue
 
-                # Emit the captured frame for other components to use
-                self.frame_captured.emit(frame)
+                # Emit the captured frame with timestamp for other components to use
+                current_capture_time = time.perf_counter_ns()  # High-resolution timestamp
+                self.frame_captured.emit(frame, current_capture_time)
 
         except Exception as e:
             logging.error(

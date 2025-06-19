@@ -90,7 +90,7 @@ class DataLogger:
             self.gsr_csv_file = open(gsr_csv_path, "w", newline="", encoding="utf-8")
             self.gsr_writer = csv.writer(self.gsr_csv_file)
             # Write the header row for the CSV file
-            self.gsr_writer.writerow(["system_timestamp", "gsr_value"])
+            self.gsr_writer.writerow(["system_timestamp", "shimmer_timestamp", "gsr_value"])
 
             self.is_logging = True
             logging.info("Logging has started. Video and CSV writers are ready.")
@@ -109,12 +109,18 @@ class DataLogger:
         if self.thermal_writer and self.is_logging:
             self.thermal_writer.write(frame)
 
-    def log_gsr_data(self, gsr_value: float):
-        """Writes a single GSR data point with a timestamp to the CSV file."""
+    def log_gsr_data(self, gsr_value: float, shimmer_timestamp: float):
+        """
+        Writes a single GSR data point with timestamps to the CSV file.
+
+        Args:
+            gsr_value (float): The GSR value from the sensor
+            shimmer_timestamp (float): The timestamp from the Shimmer device
+        """
         if self.gsr_writer and self.is_logging:
-            # Use ISO 8601 format for precise, standardized timestamps
-            timestamp = datetime.now().isoformat()
-            self.gsr_writer.writerow([timestamp, gsr_value])
+            # Use ISO 8601 format for precise, standardized system timestamps
+            system_timestamp = datetime.now().isoformat()
+            self.gsr_writer.writerow([system_timestamp, shimmer_timestamp, gsr_value])
 
     def stop_logging(self):
         """

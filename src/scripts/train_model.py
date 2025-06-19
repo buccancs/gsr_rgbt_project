@@ -48,18 +48,32 @@ logging.basicConfig(
 
 def load_all_session_data(
     data_dir: Path, gsr_sampling_rate: int, video_fps: int
-) -> tuple:
+) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
     """
-    Loads and processes data from all session directories.
+    Loads and processes data from all session directories for model training.
+
+    This function iterates through all subject session folders in the data directory,
+    processes each session using the create_dataset_from_session function, and combines
+    the results into unified arrays for training. It also creates a groups array
+    containing subject IDs for each sample, which can be used for leave-one-subject-out
+    cross-validation.
 
     Args:
         data_dir (Path): The root directory containing all subject session folders.
-        gsr_sampling_rate (int): The sampling rate of the GSR sensor.
-        video_fps (int): The FPS of the video recordings.
+            Each folder should follow the naming convention "Subject_<ID>_<DATE>_<TIME>".
+        gsr_sampling_rate (int): The sampling rate of the GSR sensor in Hz.
+            Used for preprocessing and feature extraction.
+        video_fps (int): The frames per second of the video recordings.
+            Used for synchronizing video features with GSR data.
 
     Returns:
-        A tuple containing (all_X, all_y, all_groups), where 'groups' is an
-        array of subject IDs for cross-validation.
+        Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]: 
+            A tuple containing:
+            - all_X: Feature windows with shape (n_samples, window_size, n_features)
+            - all_y: Target values with shape (n_samples,)
+            - all_groups: Subject IDs for each sample with shape (n_samples,)
+
+            If no data could be processed, returns (None, None, None).
     """
     all_X, all_y, all_groups = [], [], []
 
@@ -94,12 +108,22 @@ def load_all_session_data(
     return np.vstack(all_X), np.concatenate(all_y), np.array(all_groups)
 
 
-def parse_arguments():
+def parse_arguments() -> argparse.Namespace:
     """
     Parse command line arguments for the training script.
 
+    This function sets up the argument parser with all available options for
+    configuring the model training process. It includes options for:
+
+    - Model selection and configuration
+    - Output directory specification
+    - Cross-validation settings
+    - Validation split ratio
+    - Metadata saving preferences
+
     Returns:
-        argparse.Namespace: Parsed command line arguments
+        argparse.Namespace: Parsed command line arguments containing all the
+            configuration options specified by the user or their default values.
     """
     parser = argparse.ArgumentParser(description="Train ML models for GSR prediction")
 
@@ -159,17 +183,45 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def build_model_from_config(input_shape, model_type, config_path=None):
+def build_model_from_config(
+    input_shape: Tuple[int, int], 
+    model_type: str, 
+    config_path: Optional[str] = None
+) -> 'BaseModel':
     """
     Build a model based on the specified type and configuration.
 
+    This function creates a model instance based on the provided model type and
+    configuration. It supports both PyTorch and TensorFlow frameworks, with PyTorch
+    being the primary implementation. The function follows these steps:
+
+    1. Create a ModelConfig object from the provided model type and optional config file
+    2. Determine the framework (PyTorch or TensorFlow) from the configuration
+    3. For PyTorch models, use the ModelRegistry to create the model
+    4. For TensorFlow models, use the legacy builder functions if TensorFlow is available
+
+    The function includes error handling to provide clear error messages when model
+    creation fails.
+
     Args:
-        input_shape (tuple): Shape of the input data (window_size, features)
-        model_type (str): Type of model to build ('lstm', 'autoencoder', 'vae')
-        config_path (str, optional): Path to a YAML configuration file
+        input_shape (Tuple[int, int]): Shape of the input data as (window_size, features),
+            where window_size is the number of time steps and features is the number of
+            input features at each time step.
+        model_type (str): Type of model to build (e.g., 'lstm', 'autoencoder', 'vae').
+            Must be one of the registered model types in ModelRegistry or a supported
+            TensorFlow model type.
+        config_path (Optional[str], optional): Path to a YAML configuration file that
+            contains custom model parameters. If provided, these parameters will override
+            the default configuration for the specified model type. Defaults to None.
 
     Returns:
-        BaseModel: The built model (PyTorch or TensorFlow)
+        BaseModel: The built model instance that implements the BaseModel interface,
+            which provides a consistent API regardless of the underlying framework.
+
+    Raises:
+        ValueError: If the model type is not supported or if there's an error in the
+            model configuration.
+        ImportError: If TensorFlow is requested but not available.
     """
     # Create model configuration
     if config_path:
@@ -191,12 +243,9 @@ def build_model_from_config(input_shape, model_type, config_path=None):
             )
         except ValueError as e:
             logging.error(f"Error creating PyTorch model: {e}")
-            # Fall back to TensorFlow if available
-            if TENSORFLOW_AVAILABLE:
-                logging.warning(f"Falling back to TensorFlow model for {model_type}")
-                framework = "tensorflow"
-            else:
-                raise
+            # Raise the error instead of falling back to TensorFlow
+            # This makes it clearer what went wrong and prevents masking of issues
+            raise ValueError(f"Failed to create PyTorch model '{model_type}'. Please check your model configuration. Error: {e}")
 
     # For TensorFlow models (or fallback)
     if framework == "tensorflow":
@@ -228,20 +277,34 @@ def create_training_metadata(
     metrics: Dict[str, float]
 ) -> Dict[str, Any]:
     """
-    Create metadata about the training process.
+    Create metadata about the training process for documentation and reproducibility.
+
+    This function collects all relevant information about a model training run,
+    including model configuration, preprocessing parameters, training parameters,
+    and evaluation metrics. The metadata is structured as a dictionary that can be
+    saved to a JSON file for later analysis or to reproduce the experiment.
+
+    The metadata includes a timestamp to track when the training was performed and
+    the complete model configuration to ensure reproducibility.
 
     Args:
-        model_type (str): Type of model being trained
-        model_config (ModelConfig): Model configuration object
-        fold (int): Current fold number
-        subject_id (str): ID of the subject being tested on
-        input_shape (Tuple[int, int]): Shape of the input data
-        preprocessing_params (Dict[str, Any]): Parameters used for preprocessing
-        training_params (Dict[str, Any]): Parameters used for training
-        metrics (Dict[str, float]): Evaluation metrics
+        model_type (str): Type of model being trained (e.g., 'lstm', 'autoencoder')
+        model_config (ModelConfig): Model configuration object containing all model
+            hyperparameters and settings
+        fold (int): Current cross-validation fold number (0-based index)
+        subject_id (str): ID of the subject being used for testing in this fold
+        input_shape (Tuple[int, int]): Shape of the input data as (window_size, features)
+        preprocessing_params (Dict[str, Any]): Parameters used for preprocessing the data,
+            such as normalization method, window size, etc.
+        training_params (Dict[str, Any]): Parameters used for training the model,
+            such as batch size, learning rate, number of epochs, etc.
+        metrics (Dict[str, float]): Evaluation metrics from the model's performance,
+            such as MSE, MAE, R^2, etc.
 
     Returns:
-        Dict[str, Any]: Metadata about the training process
+        Dict[str, Any]: A comprehensive dictionary containing all metadata about the
+            training process, which can be saved to a file for documentation and
+            reproducibility purposes.
     """
     # Create metadata dictionary
     metadata = {

@@ -92,10 +92,24 @@ class EarlyStopping:
             model.load_state_dict(self.best_state_dict)
             logging.info("Restored model to best weights")
 
+    def reset(self) -> None:
+        """
+        Reset the early stopping state.
+        """
+        self.counter = 0
+        self.best_score = None
+        self.early_stop = False
+        self.best_state_dict = None
+
 
 class PyTorchLSTM(nn.Module):
     """
     PyTorch LSTM model for time series regression.
+
+    This class implements a Long Short-Term Memory (LSTM) neural network using PyTorch.
+    It consists of an LSTM layer followed by fully connected layers for regression tasks.
+    The model is designed to process sequential data with a fixed window size and
+    predict a single target value.
     """
 
     def __init__(self, input_size: int, hidden_size: int, num_layers: int, 
@@ -172,6 +186,15 @@ class PyTorchLSTM(nn.Module):
 class PyTorchAutoencoder(nn.Module):
     """
     PyTorch Autoencoder model for unsupervised feature learning.
+
+    This class implements an Autoencoder neural network using PyTorch.
+    An autoencoder is a type of neural network that learns to compress data
+    into a lower-dimensional latent space and then reconstruct it. It consists
+    of an encoder that compresses the input data and a decoder that reconstructs
+    the original input from the compressed representation.
+
+    Autoencoders are useful for dimensionality reduction, feature learning,
+    and anomaly detection tasks.
     """
 
     def __init__(self, input_size: int, latent_dim: int, encoder_layers: List[int], 
@@ -311,6 +334,20 @@ class PyTorchAutoencoder(nn.Module):
 class PyTorchVAE(nn.Module):
     """
     PyTorch Variational Autoencoder (VAE) model.
+
+    This class implements a Variational Autoencoder neural network using PyTorch.
+    A VAE is an extension of the standard autoencoder that learns a probabilistic
+    mapping between the input space and a latent space. Unlike a standard autoencoder,
+    a VAE encodes inputs as distributions (typically Gaussian) rather than points
+    in the latent space.
+
+    The VAE consists of:
+    1. An encoder that maps inputs to parameters of a distribution in latent space
+    2. A sampling mechanism that uses the reparameterization trick for backpropagation
+    3. A decoder that reconstructs the original input from sampled latent vectors
+
+    VAEs are useful for generative modeling, data augmentation, and learning
+    disentangled representations of data.
     """
 
     def __init__(self, input_size: int, latent_dim: int, encoder_layers: List[int], 
@@ -404,6 +441,18 @@ class PyTorchVAE(nn.Module):
         """
         Reparameterization trick to sample from latent distribution.
 
+        The reparameterization trick allows the model to backpropagate through
+        the sampling process by expressing the random sampling as a deterministic
+        function of the distribution parameters (mu, log_var) and an auxiliary
+        noise variable (epsilon).
+
+        Instead of directly sampling z ~ N(mu, sigma^2), which would break the
+        gradient flow, we sample epsilon ~ N(0, 1) and compute z = mu + sigma * epsilon,
+        where sigma = exp(0.5 * log_var).
+
+        During evaluation (when not in training mode), a fixed random seed is used
+        for deterministic behavior.
+
         Args:
             mu (torch.Tensor): Mean of latent distribution
             log_var (torch.Tensor): Log variance of latent distribution
@@ -485,14 +534,25 @@ class PyTorchVAE(nn.Module):
         """
         VAE loss function (reconstruction loss + KL divergence).
 
+        The VAE loss consists of two components:
+        1. Reconstruction loss: Measures how well the decoder reconstructs the input
+           from the latent representation. This implementation uses Mean Squared Error (MSE).
+        2. KL divergence loss: Regularizes the latent space by encouraging the learned
+           distribution to be close to a standard normal distribution N(0, 1). This
+           prevents overfitting and ensures the latent space has good properties for
+           generation and interpolation.
+
+        The method handles cases where the shapes of the reconstructed and original
+        inputs don't match by reshaping or padding as needed.
+
         Args:
-            recon_x (torch.Tensor): Reconstructed input
-            x (torch.Tensor): Original input
-            mu (torch.Tensor): Mean of latent distribution
-            log_var (torch.Tensor): Log variance of latent distribution
+            recon_x (torch.Tensor): Reconstructed input from the decoder
+            x (torch.Tensor): Original input to the encoder
+            mu (torch.Tensor): Mean of the latent distribution
+            log_var (torch.Tensor): Log variance of the latent distribution
 
         Returns:
-            torch.Tensor: Total loss
+            torch.Tensor: Total loss (reconstruction loss + KL divergence)
         """
         # Ensure both tensors have the same shape
         if recon_x.shape != x.shape:
@@ -531,14 +591,32 @@ class PyTorchVAE(nn.Module):
 class BasePyTorchModel(BaseModel):
     """
     Base class for all PyTorch models implementing common functionality.
+
+    This abstract class extends the BaseModel interface to provide PyTorch-specific
+    functionality that is common across all PyTorch model implementations. It serves
+    as a bridge between the framework-agnostic BaseModel interface and the concrete
+    PyTorch model implementations.
+
+    Concrete subclasses should implement the remaining abstract methods from BaseModel
+    and can leverage the common functionality provided by this class, such as model
+    saving and loading.
     """
 
     def save(self, path: str) -> None:
         """
         Save the model to the given path.
 
+        This method saves the model's state dictionary, optimizer state, configuration,
+        input shape, and training history to a file. The saved file can later be loaded
+        using the corresponding load method to restore the model's state.
+
+        The method creates any necessary parent directories if they don't exist.
+
         Args:
-            path (str): Path to save the model
+            path (str): Path to save the model file
+
+        Raises:
+            Exception: If there is an error during the saving process
         """
         try:
             # Create directory if it doesn't exist
@@ -564,6 +642,14 @@ class BasePyTorchModel(BaseModel):
 class PyTorchLSTMModel(BasePyTorchModel):
     """
     PyTorch LSTM model implementation of the BaseModel interface.
+
+    This class provides a complete implementation of the BaseModel interface
+    using a PyTorch LSTM neural network. It handles model creation, training,
+    evaluation, prediction, and serialization.
+
+    The model consists of an LSTM layer followed by fully connected layers
+    for time series regression tasks. It is designed to process sequential data
+    with a fixed window size and predict a single target value.
     """
 
     def __init__(self, input_shape: Tuple[int, int], config: Dict[str, Any]):

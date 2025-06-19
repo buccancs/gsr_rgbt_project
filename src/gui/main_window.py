@@ -14,10 +14,13 @@ from PyQt5.QtWidgets import (
     QLabel,
     QLineEdit,
     QMessageBox,
+    QGroupBox,
+    QSplitter,
 )
 
 # --- Import configuration ---
 from src import config
+from src.evaluation.real_time_visualization import RealTimeVisualizer
 
 # --- Setup logging for this module ---
 logging.basicConfig(
@@ -44,6 +47,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(config.APP_NAME)
         self.setGeometry(*config.GEOMETRY)
 
+        # Initialize the real-time visualizer
+        self.visualizer = RealTimeVisualizer(self)
+
         self._setup_ui()
 
     def _setup_ui(self):
@@ -55,13 +61,49 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout(central_widget)
 
-        # --- Video Display Layout ---
-        video_layout = QHBoxLayout()
-        self.rgb_video_label = self._create_video_label("RGB Feed")
-        self.thermal_video_label = self._create_video_label("Thermal Feed")
+        # --- Create a splitter for video and GSR visualization ---
+        splitter = QSplitter(Qt.Vertical)
 
-        video_layout.addWidget(self.rgb_video_label)
-        video_layout.addWidget(self.thermal_video_label)
+        # --- Video Display Layout ---
+        video_widget = QWidget()
+        video_layout = QHBoxLayout(video_widget)
+        video_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Create video feed group boxes
+        rgb_group = QGroupBox("RGB Video Feed")
+        rgb_layout = QVBoxLayout(rgb_group)
+        self.rgb_video_label = self._create_video_label("")
+        rgb_layout.addWidget(self.rgb_video_label)
+
+        thermal_group = QGroupBox("Thermal Video Feed")
+        thermal_layout = QVBoxLayout(thermal_group)
+        self.thermal_video_label = self._create_video_label("")
+        thermal_layout.addWidget(self.thermal_video_label)
+
+        video_layout.addWidget(rgb_group)
+        video_layout.addWidget(thermal_group)
+
+        # --- GSR Visualization Layout ---
+        gsr_widget = QWidget()
+        gsr_layout = QVBoxLayout(gsr_widget)
+        gsr_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Create GSR visualization group box
+        gsr_group = QGroupBox("Real-time GSR Signal")
+        gsr_group_layout = QVBoxLayout(gsr_group)
+
+        # Create and add the GSR plot canvas
+        self.gsr_canvas = self.visualizer.create_gsr_canvas(buffer_size=1000)
+        gsr_group_layout.addWidget(self.gsr_canvas)
+
+        gsr_layout.addWidget(gsr_group)
+
+        # Add widgets to splitter
+        splitter.addWidget(video_widget)
+        splitter.addWidget(gsr_widget)
+
+        # Set initial sizes for the splitter
+        splitter.setSizes([500, 300])
 
         # --- Controls Layout ---
         controls_layout = QHBoxLayout()
@@ -86,7 +128,7 @@ class MainWindow(QMainWindow):
         controls_layout.addWidget(self.stop_button)
 
         # --- Add layouts to main window ---
-        main_layout.addLayout(video_layout)
+        main_layout.addWidget(splitter)
         main_layout.addLayout(controls_layout)
 
     def _create_video_label(self, placeholder_text: str) -> QLabel:
@@ -150,3 +192,28 @@ class MainWindow(QMainWindow):
             message (str): The error message to display.
         """
         QMessageBox.critical(self, title, message, QMessageBox.Ok)
+
+    def connect_gsr_signal(self, gsr_thread):
+        """
+        Connect the GSR data signal from the GSR capture thread to the visualizer.
+
+        This method should be called when the GSR capture thread is started to
+        ensure that the GSR plot is updated in real-time when new data arrives.
+
+        Args:
+            gsr_thread: The GSR capture thread that emits the gsr_data_point signal.
+        """
+        if gsr_thread:
+            # Connect the GSR data signal to the visualizer's update method
+            gsr_thread.gsr_data_point.connect(self.visualizer.update_gsr_data)
+            logging.info("Connected GSR data signal to visualizer")
+
+    def reset_visualization(self):
+        """
+        Reset the visualization, clearing all data buffers.
+
+        This method should be called when recording is stopped or a new recording
+        is started to ensure that the visualization starts fresh.
+        """
+        self.visualizer.reset()
+        logging.info("Reset visualization")

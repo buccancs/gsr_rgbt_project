@@ -30,7 +30,11 @@ def check_camera(camera_id: int, camera_name: str) -> bool:
         True if the camera is working, False otherwise.
     """
     logging.info(f"Checking {camera_name} camera (ID: {camera_id})...")
-    cap = cv2.VideoCapture(camera_id, cv2.CAP_DSHOW)
+    # Use cv2.CAP_DSHOW on Windows for better camera support
+    if sys.platform == "win32":
+        cap = cv2.VideoCapture(camera_id, cv2.CAP_DSHOW)
+    else:
+        cap = cv2.VideoCapture(camera_id)
     if not cap.isOpened():
         logging.error(f"FAIL: Could not open {camera_name} camera.")
         return False

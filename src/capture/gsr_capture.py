@@ -13,14 +13,15 @@ logging.basicConfig(
     format="%(asctime)s - [%(levelname)s] - %(threadName)s - %(message)s",
 )
 
-# --- Placeholder for Real Hardware Library ---
+# --- Import Real Hardware Library ---
 # This allows the code to run without the pyshimmer library being installed.
-# In a real deployment, you would `pip install pyshimmer` and uncomment the import.
-# try:
-#     import pyshimmer
-# except ImportError:
-#     logging.warning("pyshimmer library not found. Real GSR sensor capture will not be available.")
-#     pyshimmer = None
+try:
+    import pyshimmer
+    PYSHIMMER_AVAILABLE = True
+except ImportError:
+    logging.warning("pyshimmer library not found. Real GSR sensor capture will not be available.")
+    PYSHIMMER_AVAILABLE = False
+    pyshimmer = None
 
 
 class GsrCaptureThread(QThread):
@@ -37,7 +38,7 @@ class GsrCaptureThread(QThread):
         finished (pyqtSignal): A signal emitted when the capture loop has finished.
     """
 
-    gsr_data_point = pyqtSignal(float)
+    gsr_data_point = pyqtSignal(float, float)
     finished = pyqtSignal()
 
     def __init__(
@@ -72,8 +73,8 @@ class GsrCaptureThread(QThread):
 
         if self.simulation_mode:
             self._run_simulation()
-        # elif pyshimmer is not None:
-        #     self._run_real_capture()
+        elif PYSHIMMER_AVAILABLE:
+            self._run_real_capture()
         else:
             logging.error(
                 "Real GSR sensor mode is selected, but the 'pyshimmer' library is not available."
@@ -99,7 +100,8 @@ class GsrCaptureThread(QThread):
             peak = max(0, (random.random() - 0.95) * 5)  # Infrequent, larger spikes
             gsr_value = base_gsr + noise + peak
 
-            self.gsr_data_point.emit(gsr_value)
+            current_capture_time = time.perf_counter_ns()  # High-resolution timestamp
+            self.gsr_data_point.emit(gsr_value, current_capture_time)
             time.sleep(interval)
 
     def _run_real_capture(self):
@@ -107,38 +109,38 @@ class GsrCaptureThread(QThread):
         Connects to and streams data from a physical Shimmer GSR device.
         This method contains the logic for real hardware interaction.
         """
-        # NOTE: This is a placeholder for the actual hardware integration logic.
-        # It requires the `pyshimmer` library and a connected device.
-        # logging.info(f"Attempting to connect to Shimmer device on port {self.port}.")
-        # try:
-        #     self.shimmer_device = pyshimmer.Shimmer(self.port)
-        #     # Configure the shimmer device (enable GSR, set sampling rate)
-        #     self.shimmer_device.set_sampling_rate(self.sampling_rate)
-        #     self.shimmer_device.enable_gsr() # Example method
-        #
-        #     self.shimmer_device.start_streaming()
-        #     logging.info("Successfully connected to Shimmer device and started streaming.")
-        #
-        #     while self.is_running:
-        #         # The read_data_packet call is typically blocking
-        #         packet = self.shimmer_device.read_data_packet()
-        #         if packet:
-        #             # The exact key depends on the Shimmer's configuration and sensor type.
-        #             # 'GSR_CAL' is a common key for calibrated skin conductance.
-        #             gsr_val = packet.get('GSR_CAL')
-        #             if gsr_val is not None:
-        #                 self.gsr_data_point.emit(gsr_val)
-        #
-        # except Exception as e:
-        #     logging.error(f"Failed to connect or read from Shimmer device: {e}")
-        #
-        # finally:
-        #     if self.shimmer_device and self.shimmer_device.is_streaming():
-        #         self.shimmer_device.stop_streaming()
-        #     if self.shimmer_device:
-        #         self.shimmer_device.close()
-        #     logging.info("Shimmer device connection closed.")
-        pass  # The real implementation is commented out for now.
+        logging.info(f"Attempting to connect to Shimmer device on port {self.port}.")
+        try:
+            self.shimmer_device = pyshimmer.Shimmer(self.port)
+            # Configure the shimmer device (enable GSR, set sampling rate)
+            self.shimmer_device.set_sampling_rate(self.sampling_rate)
+            self.shimmer_device.enable_gsr()  # Enable GSR sensor
+
+            self.shimmer_device.start_streaming()
+            logging.info("Successfully connected to Shimmer device and started streaming.")
+
+            while self.is_running:
+                # The read_data_packet call is typically blocking
+                packet = self.shimmer_device.read_data_packet()
+                if packet:
+                    # The exact key depends on the Shimmer's configuration and sensor type.
+                    # 'GSR_CAL' is a common key for calibrated skin conductance.
+                    gsr_val = packet.get('GSR_CAL')
+                    # Get the Shimmer's own timestamp
+                    shimmer_timestamp = packet.get('Timestamp_FormattedUnix_CAL')
+
+                    if gsr_val is not None and shimmer_timestamp is not None:
+                        self.gsr_data_point.emit(gsr_val, shimmer_timestamp)
+
+        except Exception as e:
+            logging.error(f"Failed to connect or read from Shimmer device: {e}")
+
+        finally:
+            if self.shimmer_device and hasattr(self.shimmer_device, 'is_streaming') and self.shimmer_device.is_streaming():
+                self.shimmer_device.stop_streaming()
+            if self.shimmer_device and hasattr(self.shimmer_device, 'close'):
+                self.shimmer_device.close()
+            logging.info("Shimmer device connection closed.")
 
     def stop(self):
         """
