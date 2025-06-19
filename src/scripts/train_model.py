@@ -12,7 +12,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 import joblib
 from sklearn.model_selection import LeaveOneGroupOut
 from sklearn.preprocessing import StandardScaler
@@ -22,8 +21,20 @@ sys.path.append(str(project_root))
 
 from src import config
 from src.processing.feature_engineering import create_dataset_from_session
-from src.ml_models.models import build_lstm_model, build_ae_model, build_vae_model
+from src.ml_models.model_interface import ModelRegistry
 from src.ml_models.model_config import ModelConfig, list_available_configs, create_example_config_files
+
+# Import PyTorch models (this will register them with the ModelRegistry)
+import src.ml_models.pytorch_models
+
+# For backward compatibility with TensorFlow models
+try:
+    import tensorflow as tf
+    from src.ml_models.models import build_lstm_model, build_ae_model, build_vae_model
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
+    TENSORFLOW_AVAILABLE = False
+    logging.warning("TensorFlow not available. Only PyTorch models will be supported.")
 
 # --- Setup logging ---
 logging.basicConfig(
@@ -139,7 +150,7 @@ def build_model_from_config(input_shape, model_type, config_path=None):
         config_path (str, optional): Path to a YAML configuration file
 
     Returns:
-        tf.keras.Model: The built and compiled model
+        BaseModel: The built model (PyTorch or TensorFlow)
     """
     # Create model configuration
     if config_path:
@@ -147,20 +158,52 @@ def build_model_from_config(input_shape, model_type, config_path=None):
     else:
         model_config = ModelConfig(config_name=model_type)
 
-    # Build the appropriate model type
-    if model_type == "lstm":
-        return build_lstm_model(input_shape=input_shape, config=model_config)
-    elif model_type == "autoencoder":
-        return build_ae_model(input_shape=input_shape, config=model_config)
-    elif model_type == "vae":
-        return build_vae_model(input_shape=input_shape, config=model_config)
-    else:
-        raise ValueError(f"Unsupported model type: {model_type}")
+    # Get the framework from the configuration
+    framework = model_config.get_framework()
+
+    # For PyTorch models, use the ModelRegistry
+    if framework == "pytorch":
+        try:
+            # Create the model using the registry
+            return ModelRegistry.create_model(
+                name=model_type,
+                input_shape=input_shape,
+                config=model_config.get_config()
+            )
+        except ValueError as e:
+            logging.error(f"Error creating PyTorch model: {e}")
+            # Fall back to TensorFlow if available
+            if TENSORFLOW_AVAILABLE:
+                logging.warning(f"Falling back to TensorFlow model for {model_type}")
+                framework = "tensorflow"
+            else:
+                raise
+
+    # For TensorFlow models (or fallback)
+    if framework == "tensorflow":
+        if not TENSORFLOW_AVAILABLE:
+            raise ImportError("TensorFlow is not available. Cannot build TensorFlow model.")
+
+        # Build the appropriate model type using the legacy builders
+        if model_type == "lstm" or model_type == "tf_lstm":
+            return build_lstm_model(input_shape=input_shape, config=model_config)
+        elif model_type == "autoencoder" or model_type == "tf_autoencoder":
+            return build_ae_model(input_shape=input_shape, config=model_config)
+        elif model_type == "vae" or model_type == "tf_vae":
+            return build_vae_model(input_shape=input_shape, config=model_config)
+        else:
+            raise ValueError(f"Unsupported TensorFlow model type: {model_type}")
+
+    # If we get here, the framework is not supported
+    raise ValueError(f"Unsupported framework: {framework}")
 
 
 def setup_callbacks(model_config, fold, subject_id, output_dir):
     """
     Set up training callbacks based on the model configuration.
+
+    For TensorFlow models, this returns a list of Keras callbacks.
+    For PyTorch models, this function is not used as callbacks are handled internally.
 
     Args:
         model_config (ModelConfig): Model configuration object
@@ -169,8 +212,13 @@ def setup_callbacks(model_config, fold, subject_id, output_dir):
         output_dir (Path): Directory to save models and logs
 
     Returns:
-        list: List of Keras callbacks
+        list: List of Keras callbacks (for TensorFlow models only)
     """
+    # Check if we're using TensorFlow
+    if not TENSORFLOW_AVAILABLE or model_config.get_framework() != "tensorflow":
+        logging.warning("setup_callbacks is only used for TensorFlow models")
+        return []
+
     callbacks = []
     fit_params = model_config.get_fit_params()
     callback_configs = fit_params.get("callbacks", {})
@@ -298,62 +346,105 @@ def main():
         input_shape = (X_train_scaled.shape[1], X_train_scaled.shape[2])
         model = build_model_from_config(input_shape, args.model_type, args.config_path)
 
-        # Setup callbacks
-        callbacks = setup_callbacks(model_config, fold, subject_id, output_dir)
+        # Determine if we're using a PyTorch or TensorFlow model
+        is_pytorch_model = hasattr(model, 'fit') and callable(getattr(model, 'fit'))
 
-        # Get training parameters from config
-        fit_params = model_config.get_fit_params()
+        # Create model save path
+        model_save_dir = output_dir / "models"
+        model_save_dir.mkdir(exist_ok=True, parents=True)
 
-        # Train the model
-        history = model.fit(
-            X_train_scaled,
-            y_train,
-            epochs=fit_params.get("epochs", 100),
-            batch_size=fit_params.get("batch_size", 32),
-            validation_split=fit_params.get("validation_split", 0.2),
-            callbacks=callbacks,
-            verbose=2,
-        )
+        if is_pytorch_model:
+            # For PyTorch models, use the BaseModel interface
+            logging.info(f"Training PyTorch model for {args.model_type}...")
+
+            # Train the model
+            history = model.fit(
+                X_train_scaled,
+                y_train,
+                validation_data=(X_test_scaled, y_test)
+            )
+
+            # Save the model
+            model_save_path = model_save_dir / f"{args.model_type}_fold_{fold+1}_subject_{subject_id}.pt"
+            model.save(str(model_save_path))
+            logging.info(f"Saved model to {model_save_path}")
+
+        else:
+            # For TensorFlow models, use the legacy approach
+            logging.info(f"Training TensorFlow model for {args.model_type}...")
+
+            # Setup callbacks
+            callbacks = setup_callbacks(model_config, fold, subject_id, output_dir)
+
+            # Get training parameters from config
+            fit_params = model_config.get_fit_params()
+
+            # Train the model
+            history = model.fit(
+                X_train_scaled,
+                y_train,
+                epochs=fit_params.get("epochs", 100),
+                batch_size=fit_params.get("batch_size", 32),
+                validation_split=fit_params.get("validation_split", 0.2),
+                callbacks=callbacks,
+                verbose=2,
+            )
 
         # 6. Evaluate the model on the held-out data
         logging.info(f"Evaluating model on {'subject ' + subject_id if isinstance(cv, LeaveOneGroupOut) else 'test set'}...")
 
-        # For LSTM models, evaluate with standard metrics
-        if args.model_type == "lstm":
-            test_metrics = model.evaluate(X_test_scaled, y_test, verbose=0)
+        if is_pytorch_model:
+            # For PyTorch models, use the evaluate method
+            metrics = model.evaluate(X_test_scaled, y_test)
 
-            # Handle different return formats from model.evaluate()
-            if isinstance(test_metrics, list):
-                test_loss = test_metrics[0]
-                test_mse = test_metrics[1] if len(test_metrics) > 1 else None
-            else:
-                test_loss = test_metrics
-                test_mse = None
-
-            metric_names = model.metrics_names
-
+            # Log the metrics
+            metrics_str = ", ".join([f"{k} = {v:.4f}" for k, v in metrics.items()])
             logging.info(
                 f"Test Results for {'subject ' + subject_id if isinstance(cv, LeaveOneGroupOut) else 'fold ' + str(fold+1)}: "
-                f"{metric_names[0]} = {test_loss:.4f}" + 
-                (f", {metric_names[1]} = {test_mse:.4f}" if test_mse is not None else "")
+                f"{metrics_str}"
             )
 
-            result = {"fold": fold+1, "subject": subject_id, metric_names[0]: test_loss}
-            if test_mse is not None:
-                result[metric_names[1]] = test_mse
+            # Create result dictionary
+            result = {"fold": fold+1, "subject": subject_id}
+            result.update(metrics)
 
-        # For autoencoder models, calculate reconstruction error
         else:
-            predictions = model.predict(X_test_scaled)
-            mse = np.mean(np.square(X_test_scaled - predictions))
-            mae = np.mean(np.abs(X_test_scaled - predictions))
+            # For TensorFlow models, use the legacy approach
+            if args.model_type == "lstm" or args.model_type == "tf_lstm":
+                test_metrics = model.evaluate(X_test_scaled, y_test, verbose=0)
 
-            logging.info(
-                f"Test Results for {'subject ' + subject_id if isinstance(cv, LeaveOneGroupOut) else 'fold ' + str(fold+1)}: "
-                f"MSE = {mse:.4f}, MAE = {mae:.4f}"
-            )
+                # Handle different return formats from model.evaluate()
+                if isinstance(test_metrics, list):
+                    test_loss = test_metrics[0]
+                    test_mse = test_metrics[1] if len(test_metrics) > 1 else None
+                else:
+                    test_loss = test_metrics
+                    test_mse = None
 
-            result = {"fold": fold+1, "subject": subject_id, "mse": mse, "mae": mae}
+                metric_names = model.metrics_names
+
+                logging.info(
+                    f"Test Results for {'subject ' + subject_id if isinstance(cv, LeaveOneGroupOut) else 'fold ' + str(fold+1)}: "
+                    f"{metric_names[0]} = {test_loss:.4f}" + 
+                    (f", {metric_names[1]} = {test_mse:.4f}" if test_mse is not None else "")
+                )
+
+                result = {"fold": fold+1, "subject": subject_id, metric_names[0]: test_loss}
+                if test_mse is not None:
+                    result[metric_names[1]] = test_mse
+
+            else:
+                # For autoencoder models, calculate reconstruction error
+                predictions = model.predict(X_test_scaled)
+                mse = np.mean(np.square(X_test_scaled - predictions))
+                mae = np.mean(np.abs(X_test_scaled - predictions))
+
+                logging.info(
+                    f"Test Results for {'subject ' + subject_id if isinstance(cv, LeaveOneGroupOut) else 'fold ' + str(fold+1)}: "
+                    f"MSE = {mse:.4f}, MAE = {mae:.4f}"
+                )
+
+                result = {"fold": fold+1, "subject": subject_id, "mse": mse, "mae": mae}
 
         fold_results.append(result)
 

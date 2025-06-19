@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 
 import cv2
 import numpy as np
@@ -16,6 +16,15 @@ from src.processing.preprocessing import (
     extract_roi_signal,
 )
 
+# Try to import Cython optimizations
+try:
+    from src.processing.cython_optimizations import cy_create_feature_windows, cy_align_signals
+    CYTHON_AVAILABLE = True
+    logging.info("Cython optimizations are available and will be used.")
+except ImportError:
+    CYTHON_AVAILABLE = False
+    logging.warning("Cython optimizations are not available. Using pure Python implementations.")
+
 # --- Setup logging for this module ---
 logging.basicConfig(
     level=logging.INFO,
@@ -27,37 +36,65 @@ def align_signals(gsr_df: pd.DataFrame, video_signals: pd.DataFrame) -> pd.DataF
     """
     Aligns video-derived signals to the GSR signal timestamps.
 
-    This function uses pandas' resampling and interpolation capabilities to create
-    a unified DataFrame where each GSR timestamp has a corresponding set of
-    video features.
+    This function uses interpolation to create a unified DataFrame where each GSR 
+    timestamp has a corresponding set of video features.
 
     Args:
-        gsr_df (pd.DataFrame): DataFrame with GSR data and a 'timestamp' index.
-        video_signals (pd.DataFrame): DataFrame with video features and a 'timestamp' index.
+        gsr_df (pd.DataFrame): DataFrame with GSR data and a 'timestamp' column.
+        video_signals (pd.DataFrame): DataFrame with video features and a 'timestamp' column.
 
     Returns:
         pd.DataFrame: A merged DataFrame with signals aligned to the GSR timestamps.
     """
     try:
-        # Combine the two dataframes. This will create NaNs where timestamps don't align.
-        combined_df = pd.concat(
-            [gsr_df.set_index("timestamp"), video_signals.set_index("timestamp")],
-            axis=1,
-        )
+        if CYTHON_AVAILABLE:
+            # Use the Cython implementation for better performance
+            # Convert timestamps to nanoseconds for numerical operations
+            gsr_timestamps = pd.to_datetime(gsr_df["timestamp"]).astype(np.int64).values
+            video_timestamps = pd.to_datetime(video_signals["timestamp"]).astype(np.int64).values
 
-        # Interpolate the video signals to fill NaN values at GSR timestamps.
-        # 'time' method is suitable for time-series data.
-        aligned_df = combined_df.interpolate(method="time").reindex(
-            gsr_df.set_index("timestamp").index
-        )
+            # Extract data columns (excluding timestamp)
+            gsr_data = gsr_df.drop(columns=["timestamp"]).values
+            video_data = video_signals.drop(columns=["timestamp"]).values
 
-        # Reset index to have 'timestamp' as a column again and remove any remaining NaNs
-        aligned_df = aligned_df.reset_index().dropna()
+            # Call the Cython function
+            aligned_data = cy_align_signals(gsr_data, video_data, gsr_timestamps, video_timestamps)
 
-        logging.info(
-            f"Successfully aligned GSR and video signals. Resulting shape: {aligned_df.shape}"
-        )
-        return aligned_df
+            # Create a new DataFrame with the aligned data
+            # First, create column names for the result
+            gsr_cols = gsr_df.columns.drop("timestamp").tolist()
+            video_cols = video_signals.columns.drop("timestamp").tolist()
+            result_cols = gsr_cols + video_cols
+
+            # Create the DataFrame
+            aligned_df = pd.DataFrame(aligned_data, columns=result_cols)
+            aligned_df.insert(0, "timestamp", pd.to_datetime(gsr_timestamps))
+
+            logging.info(
+                f"Successfully aligned GSR and video signals using Cython. Resulting shape: {aligned_df.shape}"
+            )
+            return aligned_df
+        else:
+            # Use the original pandas implementation
+            # Combine the two dataframes. This will create NaNs where timestamps don't align.
+            combined_df = pd.concat(
+                [gsr_df.set_index("timestamp"), video_signals.set_index("timestamp")],
+                axis=1,
+            )
+
+            # Interpolate the video signals to fill NaN values at GSR timestamps.
+            # 'time' method is suitable for time-series data.
+            aligned_df = combined_df.interpolate(method="time").reindex(
+                gsr_df.set_index("timestamp").index
+            )
+
+            # Reset index to have 'timestamp' as a column again and remove any remaining NaNs
+            aligned_df = aligned_df.reset_index().dropna()
+
+            logging.info(
+                f"Successfully aligned GSR and video signals using pandas. Resulting shape: {aligned_df.shape}"
+            )
+            return aligned_df
 
     except Exception as e:
         logging.error(f"An error occurred during signal alignment: {e}")
@@ -85,22 +122,38 @@ def create_feature_windows(
         Tuple[np.ndarray, np.ndarray]: A tuple containing the feature windows (X)
                                        and the corresponding target values (y).
     """
-    X, y = [], []
-    num_rows = len(df)
+    if CYTHON_AVAILABLE:
+        # Use the Cython implementation for better performance
+        # Extract features and target as numpy arrays
+        features = df[feature_cols].values
+        targets = df[target_col].values
 
-    for i in range(0, num_rows - window_size, step):
-        window_features = df[feature_cols].iloc[i : i + window_size].values
-        # The target is the value at the end of the window
-        target_value = df[target_col].iloc[i + window_size - 1]
+        # Get column indices for the Cython function
+        feature_cols_idx = list(range(len(feature_cols)))
 
-        X.append(window_features)
-        y.append(target_value)
+        # Call the Cython function
+        X, y = cy_create_feature_windows(features, targets, feature_cols_idx, window_size, step)
 
-    X = np.array(X)
-    y = np.array(y)
+        logging.info(f"Created feature windows using Cython. X shape: {X.shape}, y shape: {y.shape}")
+        return X, y
+    else:
+        # Use the original Python implementation
+        X, y = [], []
+        num_rows = len(df)
 
-    logging.info(f"Created feature windows. X shape: {X.shape}, y shape: {y.shape}")
-    return X, y
+        for i in range(0, num_rows - window_size, step):
+            window_features = df[feature_cols].iloc[i : i + window_size].values
+            # The target is the value at the end of the window
+            target_value = df[target_col].iloc[i + window_size - 1]
+
+            X.append(window_features)
+            y.append(target_value)
+
+        X = np.array(X)
+        y = np.array(y)
+
+        logging.info(f"Created feature windows using Python. X shape: {X.shape}, y shape: {y.shape}")
+        return X, y
 
 
 # --- Example Pipeline ---

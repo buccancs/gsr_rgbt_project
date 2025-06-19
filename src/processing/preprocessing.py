@@ -12,6 +12,15 @@ import pandas as pd
 # --- Import from our project ---
 from src.processing.data_loader import SessionDataLoader
 
+# Try to import Cython optimizations
+try:
+    from src.processing.cython_optimizations import cy_extract_roi_signal
+    CYTHON_AVAILABLE = True
+    logging.info("Cython optimizations are available and will be used.")
+except ImportError:
+    CYTHON_AVAILABLE = False
+    logging.warning("Cython optimizations are not available. Using pure Python implementations.")
+
 # --- Setup logging for this module ---
 logging.basicConfig(
     level=logging.INFO,
@@ -114,12 +123,23 @@ def extract_roi_signal(frame: np.ndarray, roi: Tuple[int, int, int, int]) -> np.
     Returns:
         np.ndarray: An array containing the mean value for each channel (e.g., [R, G, B]).
     """
-    x, y, w, h = roi
-    palm_region = frame[y : y + h, x : x + w]
+    if CYTHON_AVAILABLE:
+        # Use the Cython implementation for better performance
+        # Ensure frame is in the correct format (uint8)
+        if frame.dtype != np.uint8:
+            frame = frame.astype(np.uint8)
 
-    # Calculate the mean value for each channel within the ROI
-    mean_signal = cv2.mean(palm_region)[:3]  # Take only the B, G, R components
-    return np.array(mean_signal)
+        # Call the Cython function
+        mean_signal = cy_extract_roi_signal(frame, roi)
+        return mean_signal
+    else:
+        # Use the original OpenCV implementation
+        x, y, w, h = roi
+        palm_region = frame[y : y + h, x : x + w]
+
+        # Calculate the mean value for each channel within the ROI
+        mean_signal = cv2.mean(palm_region)[:3]  # Take only the B, G, R components
+        return np.array(mean_signal)
 
 
 # --- Example Usage ---

@@ -11,7 +11,6 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 from sklearn.preprocessing import StandardScaler
 
 project_root = Path(__file__).resolve().parents[2]
@@ -19,8 +18,20 @@ sys.path.append(str(project_root))
 
 from src import config
 from src.processing.feature_engineering import create_dataset_from_session
-from src.ml_models.models import build_lstm_model, build_ae_model, build_vae_model
+from src.ml_models.model_interface import ModelRegistry, BaseModel
 from src.ml_models.model_config import ModelConfig
+
+# Import PyTorch models (this will register them with the ModelRegistry)
+import src.ml_models.pytorch_models
+
+# For backward compatibility with TensorFlow models
+try:
+    import tensorflow as tf
+    from src.ml_models.models import build_lstm_model, build_ae_model, build_vae_model
+    TENSORFLOW_AVAILABLE = True
+except ImportError:
+    TENSORFLOW_AVAILABLE = False
+    logging.warning("TensorFlow not available. Only PyTorch models will be supported.")
 
 # --- Setup logging ---
 # Configure logging once at the module level for consistency
@@ -201,8 +212,40 @@ def main():
         # 3. Load the trained model
         logging.info("Step 3/5: Loading model...")
         try:
-            model = tf.keras.models.load_model(args.model_path)
-            logging.info(f"Loaded model from {args.model_path}")
+            # Check if the model is a PyTorch model (.pt extension) or TensorFlow model (.keras extension)
+            model_path = args.model_path
+            is_pytorch_model = model_path.endswith('.pt')
+
+            if is_pytorch_model:
+                # For PyTorch models, use the appropriate model class based on the model type
+                if args.model_type.startswith('pytorch_') or args.model_type in ['lstm', 'autoencoder', 'vae']:
+                    # Get the model class from the registry
+                    model_type = args.model_type
+                    # If it's an alias, resolve it
+                    if model_type in ['lstm', 'autoencoder', 'vae']:
+                        model_type = f"pytorch_{model_type}"
+
+                    # Get the model class from the registry
+                    model_factories = {
+                        'pytorch_lstm': src.ml_models.pytorch_models.PyTorchLSTMModel,
+                        'pytorch_autoencoder': src.ml_models.pytorch_models.PyTorchAutoencoderModel,
+                        'pytorch_vae': src.ml_models.pytorch_models.PyTorchVAEModel
+                    }
+
+                    if model_type in model_factories:
+                        model = model_factories[model_type].load(model_path)
+                    else:
+                        raise ValueError(f"Unknown PyTorch model type: {model_type}")
+                else:
+                    raise ValueError(f"Unsupported model type for PyTorch: {args.model_type}")
+            else:
+                # For TensorFlow models, use the legacy approach
+                if not TENSORFLOW_AVAILABLE:
+                    raise ImportError("TensorFlow is not available. Cannot load TensorFlow model.")
+
+                model = tf.keras.models.load_model(model_path)
+
+            logging.info(f"Loaded model from {model_path}")
         except Exception as e:
             logging.error(f"Failed to load model: {e}")
             return None
@@ -211,57 +254,97 @@ def main():
         logging.info("Step 4/5: Running inference...")
 
         try:
-            if args.model_type == "lstm":
-                # For LSTM models, predict the target values (GSR)
-                predictions = model.predict(X_scaled, verbose=1)
+            if is_pytorch_model:
+                # For PyTorch models, use the BaseModel interface
+                if args.model_type in ['lstm', 'pytorch_lstm']:
+                    # For LSTM models, predict the target values (GSR)
+                    predictions = model.predict(X_scaled)
 
-                # Ensure predictions are the right shape
-                if len(predictions.shape) > 1:
-                    predictions = predictions.flatten()
+                    # Create a DataFrame with ground truth and predictions
+                    results_df = pd.DataFrame({
+                        "timestamp": range(len(y)),
+                        "ground_truth": y.flatten(),
+                        "prediction": predictions
+                    })
 
-                # Create a DataFrame with ground truth and predictions
-                results_df = pd.DataFrame({
-                    "timestamp": range(len(y)),
-                    "ground_truth": y.flatten(),
-                    "prediction": predictions
-                })
+                    # Calculate regression metrics
+                    metrics = model.evaluate(X_scaled, y)
 
-                # Calculate regression metrics
-                mae = np.mean(np.abs(results_df["ground_truth"] - results_df["prediction"]))
-                mse = np.mean(np.square(results_df["ground_truth"] - results_df["prediction"]))
-                rmse = np.sqrt(mse)
+                    logging.info(f"Inference Results for subject {args.subject_id}:")
+                    for metric_name, metric_value in metrics.items():
+                        logging.info(f"  {metric_name.upper()}: {metric_value:.4f}")
 
-                logging.info(f"Inference Results for subject {args.subject_id}:")
-                logging.info(f"  MAE: {mae:.4f}")
-                logging.info(f"  MSE: {mse:.4f}")
-                logging.info(f"  RMSE: {rmse:.4f}")
+                else:
+                    # For autoencoder/VAE models, reconstruct the input
+                    reconstructions = model.predict(X_scaled)
+
+                    # Calculate metrics using the evaluate method
+                    metrics = model.evaluate(X_scaled)
+
+                    logging.info(f"Reconstruction Results for subject {args.subject_id}:")
+                    for metric_name, metric_value in metrics.items():
+                        logging.info(f"  {metric_name.upper()}: {metric_value:.4f}")
+
+                    # Create a simplified results DataFrame for autoencoders
+                    results_df = pd.DataFrame({
+                        "timestamp": range(len(X)),
+                        "reconstruction_mse": metrics.get('mse', 0.0),
+                        "reconstruction_mae": metrics.get('mae', 0.0)
+                    })
 
             else:
-                # For autoencoder/VAE models, reconstruct the input
-                reconstructions = model.predict(X_scaled, verbose=1)
+                # For TensorFlow models, use the legacy approach
+                if args.model_type == "lstm" or args.model_type == "tf_lstm":
+                    # For LSTM models, predict the target values (GSR)
+                    predictions = model.predict(X_scaled, verbose=1)
 
-                # Calculate reconstruction error metrics
-                # Use axis parameter to maintain dimensionality during calculation
-                reconstruction_mse = np.mean(np.square(X_scaled - reconstructions), axis=(1, 2))
-                reconstruction_mae = np.mean(np.abs(X_scaled - reconstructions), axis=(1, 2))
+                    # Ensure predictions are the right shape
+                    if len(predictions.shape) > 1:
+                        predictions = predictions.flatten()
 
-                # Overall metrics
-                mse = np.mean(reconstruction_mse)
-                mae = np.mean(reconstruction_mae)
+                    # Create a DataFrame with ground truth and predictions
+                    results_df = pd.DataFrame({
+                        "timestamp": range(len(y)),
+                        "ground_truth": y.flatten(),
+                        "prediction": predictions
+                    })
 
-                logging.info(f"Reconstruction Results for subject {args.subject_id}:")
-                logging.info(f"  MSE: {mse:.4f}")
-                logging.info(f"  MAE: {mae:.4f}")
+                    # Calculate regression metrics
+                    mae = np.mean(np.abs(results_df["ground_truth"] - results_df["prediction"]))
+                    mse = np.mean(np.square(results_df["ground_truth"] - results_df["prediction"]))
+                    rmse = np.sqrt(mse)
 
-                # Create a simplified results DataFrame for autoencoders
-                results_df = pd.DataFrame({
-                    "timestamp": range(len(X)),
-                    "reconstruction_mse": reconstruction_mse,
-                    "reconstruction_mae": reconstruction_mae
-                })
+                    logging.info(f"Inference Results for subject {args.subject_id}:")
+                    logging.info(f"  MAE: {mae:.4f}")
+                    logging.info(f"  MSE: {mse:.4f}")
+                    logging.info(f"  RMSE: {rmse:.4f}")
 
-                # Free memory
-                del reconstructions
+                else:
+                    # For autoencoder/VAE models, reconstruct the input
+                    reconstructions = model.predict(X_scaled, verbose=1)
+
+                    # Calculate reconstruction error metrics
+                    # Use axis parameter to maintain dimensionality during calculation
+                    reconstruction_mse = np.mean(np.square(X_scaled - reconstructions), axis=(1, 2))
+                    reconstruction_mae = np.mean(np.abs(X_scaled - reconstructions), axis=(1, 2))
+
+                    # Overall metrics
+                    mse = np.mean(reconstruction_mse)
+                    mae = np.mean(reconstruction_mae)
+
+                    logging.info(f"Reconstruction Results for subject {args.subject_id}:")
+                    logging.info(f"  MSE: {mse:.4f}")
+                    logging.info(f"  MAE: {mae:.4f}")
+
+                    # Create a simplified results DataFrame for autoencoders
+                    results_df = pd.DataFrame({
+                        "timestamp": range(len(X)),
+                        "reconstruction_mse": reconstruction_mse,
+                        "reconstruction_mae": reconstruction_mae
+                    })
+
+                    # Free memory
+                    del reconstructions
 
         except Exception as e:
             logging.error(f"Error during inference: {e}")

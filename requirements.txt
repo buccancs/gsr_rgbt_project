@@ -2,3 +2,8 @@ numpy
 opencv-python
 neurokit2
 pyshimmer
+torch
+cython
+scikit-learn
+pandas
+pyyaml

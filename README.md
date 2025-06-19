@@ -24,8 +24,10 @@ data, train a predictive model, and evaluate its performance.
 
 processing/: Modules for loading, preprocessing, and creating feature windows from the raw data.
 
-ml_models/: Defines the neural network architectures (LSTM, AE, VAE) and model configuration system.
-  - models.py: Implements the model architectures with configurable parameters.
+ml_models/: Defines the neural network architectures and model configuration system.
+  - model_interface.py: Provides a common interface for all models, regardless of framework.
+  - models.py: Implements TensorFlow/Keras model architectures (legacy support).
+  - pytorch_models.py: Implements PyTorch versions of all models.
   - model_config.py: Provides a flexible configuration system for model hyperparameters.
 
 scripts/: Contains the high-level scripts for training, inference, and evaluation.
