@@ -24,7 +24,8 @@ logging.basicConfig(
 
 
 def generate_mock_physiological_data(
-    duration_seconds: int, sampling_rate: int
+    duration_seconds: int, sampling_rate: int, heart_rate: float = 75,
+    scr_number: int = 5, drift: float = 0.1
 ) -> pd.DataFrame:
     """
     Generates a realistic, synchronized DataFrame of PPG and GSR signals.
@@ -39,6 +40,9 @@ def generate_mock_physiological_data(
     Args:
         duration_seconds (int): Length of the signals to generate in seconds
         sampling_rate (int): Number of samples per second (Hz)
+        heart_rate (float, optional): Heart rate in beats per minute. Defaults to 75.
+        scr_number (int, optional): Number of skin conductance responses. Defaults to 5.
+        drift (float, optional): Gradual baseline drift for GSR. Defaults to 0.1.
 
     Returns:
         pd.DataFrame: DataFrame containing 'timestamp', 'ppg_value', and 'gsr_value' columns
@@ -50,6 +54,7 @@ def generate_mock_physiological_data(
     logging.info(
         f"Generating {duration_seconds}s of physiological data at {sampling_rate}Hz..."
     )
+    logging.info(f"Parameters: heart_rate={heart_rate}bpm, scr_number={scr_number}, drift={drift}")
 
     try:
         # Generate realistic signals using NeuroKit2
@@ -57,15 +62,15 @@ def generate_mock_physiological_data(
         ppg = nk.ppg_simulate(
             duration=duration_seconds, 
             sampling_rate=sampling_rate, 
-            heart_rate=75  # Average resting heart rate
+            heart_rate=heart_rate
         )
 
         # GSR/EDA: Galvanic Skin Response/Electrodermal Activity (sweat gland activity)
         gsr = nk.eda_simulate(
             duration=duration_seconds, 
             sampling_rate=sampling_rate, 
-            scr_number=5,  # Number of skin conductance responses
-            drift=0.1      # Gradual baseline drift
+            scr_number=scr_number,
+            drift=drift
         )
 
         # Create timestamps starting from now with proper intervals
