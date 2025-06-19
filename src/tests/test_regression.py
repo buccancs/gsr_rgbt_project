@@ -8,6 +8,7 @@ import tempfile
 import shutil
 import numpy as np
 import pandas as pd
+import torch
 from unittest.mock import patch, MagicMock
 
 project_root = Path(__file__).resolve().parents[2]
@@ -134,15 +135,19 @@ class TestRegressionModelTraining(unittest.TestCase):
             # Reset the mock for the next iteration
             mock_create_model.reset_mock()
 
-    @patch('src.ml_models.pytorch_models.PyTorchCNNModel')
+    @patch('src.ml_models.pytorch_cnn_models.PyTorchCNNModel')
     def test_model_training_with_different_configs(self, mock_model_class):
         """Test that models can be trained with different configurations."""
         # Setup mock
         mock_model = MagicMock()
         mock_model_class.return_value = mock_model
 
-        # Register the mock model with the ModelRegistry
-        ModelRegistry.register_model("test_model", mock_model_class)
+        # Create a mock ModelFactory
+        mock_factory = MagicMock()
+        mock_factory.create_model.return_value = mock_model
+
+        # Register the mock factory with the ModelRegistry
+        ModelRegistry.register("test_model", mock_factory)
 
         # Create different configurations
         configs = [
@@ -217,6 +222,168 @@ class TestRegressionModelTraining(unittest.TestCase):
             mock_model.reset_mock()
 
 
+class TestEndToEndPipeline(unittest.TestCase):
+    """
+    End-to-end tests for the ML pipeline.
+    These tests verify that the entire pipeline from feature engineering to model evaluation works correctly.
+    """
+
+    def setUp(self):
+        """Set up test fixtures."""
+        # Create a temporary directory for test outputs
+        self.test_dir = Path(tempfile.mkdtemp())
+
+        # Create synthetic data
+        np.random.seed(42)
+        self.window_size = 20
+        self.num_features = 4
+        self.batch_size = 10
+
+        # Create mock data
+        self.X = np.random.rand(self.batch_size, self.window_size, self.num_features).astype(np.float32)
+        self.y = np.random.rand(self.batch_size).astype(np.float32)
+
+        # Create model configurations for testing
+        self.model_configs = {
+            "lstm": {
+                "model_params": {
+                    "hidden_size": 32,
+                    "num_layers": 1,
+                    "dropout": 0.1,
+                    "bidirectional": False,
+                    "fc_layers": [16, 1],
+                    "activations": ["relu", "linear"]
+                },
+                "optimizer_params": {
+                    "type": "adam",
+                    "lr": 0.001
+                },
+                "loss_fn": "mse",
+                "train_params": {
+                    "epochs": 2,
+                    "batch_size": 4,
+                    "validation_split": 0.2
+                }
+            },
+            "autoencoder": {
+                "model_params": {
+                    "latent_dim": 8,
+                    "encoder_layers": [16, 8],
+                    "decoder_layers": [8, 16],
+                    "activations": ["relu", "relu", "relu", "sigmoid"]
+                },
+                "optimizer_params": {
+                    "type": "adam",
+                    "lr": 0.001
+                },
+                "loss_fn": "mse",
+                "train_params": {
+                    "epochs": 2,
+                    "batch_size": 4,
+                    "validation_split": 0.2
+                }
+            }
+        }
+
+    def tearDown(self):
+        """Tear down test fixtures."""
+        # Remove the temporary directory
+        shutil.rmtree(self.test_dir)
+
+    def test_feature_engineering_to_model_pipeline(self):
+        """Test the pipeline from feature engineering to model training and prediction."""
+        # Create feature windows
+        feature_cols = ["feature1", "feature2", "feature3", "feature4"]
+        target_col = "target"
+
+        # Create a DataFrame with the right structure
+        timestamps = pd.to_datetime(np.arange(100), unit="s")
+        df = pd.DataFrame({
+            "timestamp": timestamps,
+            "feature1": np.random.rand(100),
+            "feature2": np.random.rand(100),
+            "feature3": np.random.rand(100),
+            "feature4": np.random.rand(100),
+            "target": np.random.rand(100)
+        })
+
+        # Create feature windows
+        X, y = create_feature_windows(df, feature_cols, target_col, self.window_size, step=5)
+
+        # Build and train LSTM model
+        input_shape = (self.window_size, len(feature_cols))
+        config = ModelConfig()
+        config.config = self.model_configs["lstm"]
+
+        model = build_model_from_config(input_shape, "lstm", config_path=None)
+
+        # Train the model
+        history = model.fit(X, y)
+
+        # Make predictions
+        predictions = model.predict(X)
+
+        # Verify the pipeline worked
+        self.assertIsNotNone(history)
+        self.assertIn("train_loss", history)
+        self.assertEqual(predictions.shape, (len(X),))
+
+    def test_different_model_configurations(self):
+        """Test different model configurations to ensure they all work."""
+        input_shape = (self.window_size, self.num_features)
+
+        # Test LSTM model
+        lstm_config = ModelConfig()
+        lstm_config.config = self.model_configs["lstm"]
+
+        lstm_model = build_model_from_config(input_shape, "lstm", config_path=None)
+        lstm_history = lstm_model.fit(self.X, self.y)
+        lstm_predictions = lstm_model.predict(self.X)
+
+        # Test Autoencoder model
+        ae_config = ModelConfig()
+        ae_config.config = self.model_configs["autoencoder"]
+
+        ae_model = build_model_from_config(input_shape, "autoencoder", config_path=None)
+        ae_history = ae_model.fit(self.X)
+        ae_predictions = ae_model.predict(self.X)
+
+        # Verify all models worked
+        self.assertIsNotNone(lstm_history)
+        self.assertIn("train_loss", lstm_history)
+        self.assertEqual(lstm_predictions.shape, (self.batch_size,))
+
+        self.assertIsNotNone(ae_history)
+        self.assertIn("train_loss", ae_history)
+        self.assertEqual(ae_predictions.shape, self.X.shape)
+
+    def test_model_save_load_pipeline(self):
+        """Test the pipeline for saving and loading models."""
+        input_shape = (self.window_size, self.num_features)
+
+        # Build and train LSTM model
+        config = ModelConfig()
+        config.config = self.model_configs["lstm"]
+
+        model = build_model_from_config(input_shape, "lstm", config_path=None)
+        model.fit(self.X, self.y)
+
+        # Save the model
+        save_path = self.test_dir / "test_model.pt"
+        model.save(str(save_path))
+
+        # Load the model
+        loaded_model = ModelRegistry.create_model("lstm", input_shape, config.config)
+        loaded_model.model.load_state_dict(torch.load(str(save_path)))
+
+        # Make predictions with both models
+        original_predictions = model.predict(self.X)
+        loaded_predictions = loaded_model.predict(self.X)
+
+        # Verify the predictions are the same
+        np.testing.assert_allclose(original_predictions, loaded_predictions, rtol=1e-5, atol=1e-8)
+
+
 class TestSmokeTests(unittest.TestCase):
     """
     Smoke tests for the main pipelines.
@@ -284,6 +451,75 @@ class TestSmokeTests(unittest.TestCase):
 
         # Just check that it runs without errors and returns something
         self.assertIsNotNone(model)
+
+    def test_full_pipeline_smoke(self):
+        """Smoke test for the full pipeline."""
+        # Create a temporary directory
+        test_dir = Path(tempfile.mkdtemp())
+        try:
+            # Create synthetic data
+            window_size = 20
+            num_features = 4
+            batch_size = 10
+
+            # Create mock data
+            X = np.random.rand(batch_size, window_size, num_features).astype(np.float32)
+            y = np.random.rand(batch_size).astype(np.float32)
+
+            # Split data
+            train_size = int(0.8 * batch_size)
+            X_train, X_test = X[:train_size], X[train_size:]
+            y_train, y_test = y[:train_size], y[train_size:]
+
+            # Create model configuration
+            config = {
+                "model_params": {
+                    "hidden_size": 32,
+                    "num_layers": 1,
+                    "dropout": 0.1,
+                    "bidirectional": False,
+                    "fc_layers": [16, 1],
+                    "activations": ["relu", "linear"]
+                },
+                "optimizer_params": {
+                    "type": "adam",
+                    "lr": 0.001
+                },
+                "loss_fn": "mse",
+                "train_params": {
+                    "epochs": 1,  # Just one epoch for smoke test
+                    "batch_size": 2,
+                    "validation_split": 0.2
+                }
+            }
+
+            # Build model
+            input_shape = (window_size, num_features)
+            model_config = ModelConfig()
+            model_config.config = config
+
+            model = build_model_from_config(input_shape, "lstm", config_path=None)
+
+            # Train model
+            model.fit(X_train, y_train)
+
+            # Evaluate model
+            metrics = model.evaluate(X_test, y_test)
+
+            # Make predictions
+            predictions = model.predict(X_test)
+
+            # Save model
+            save_path = test_dir / "smoke_test_model.pt"
+            model.save(str(save_path))
+
+            # Just check that everything runs without errors
+            self.assertIsNotNone(metrics)
+            self.assertIsNotNone(predictions)
+            self.assertTrue(save_path.exists())
+        finally:
+            # Clean up
+            shutil.rmtree(test_dir)
 
 
 if __name__ == "__main__":

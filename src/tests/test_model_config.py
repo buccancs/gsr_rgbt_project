@@ -257,6 +257,86 @@ class TestModelConfig(unittest.TestCase):
         self.assertIn("loss", params)
         self.assertIn("metrics", params)
 
+    def test_resolve_config_name(self):
+        """Test the _resolve_config_name method."""
+        config = ModelConfig("lstm")
+
+        # Test resolving an alias
+        resolved_name = config._resolve_config_name("lstm")
+        self.assertEqual(resolved_name, "pytorch_lstm")
+
+        # Test resolving a direct config name
+        resolved_name = config._resolve_config_name("pytorch_lstm")
+        self.assertEqual(resolved_name, "pytorch_lstm")
+
+        # Test resolving a non-existent config name
+        resolved_name = config._resolve_config_name("non_existent_config")
+        self.assertEqual(resolved_name, "non_existent_config")
+
+    def test_get_model_name(self):
+        """Test the get_model_name method."""
+        # Test with a valid config
+        config = ModelConfig("lstm")
+        self.assertEqual(config.get_model_name(), "lstm")
+
+        # Test with a custom config
+        custom_config = {
+            "name": "custom_model",
+            "framework": "pytorch"
+        }
+        config = ModelConfig()
+        config.config = custom_config
+        self.assertEqual(config.get_model_name(), "custom_model")
+
+        # Test with a config missing the name field
+        config.config = {"framework": "pytorch"}
+        self.assertEqual(config.get_model_name(), "unknown")
+
+    def test_get_framework(self):
+        """Test the get_framework method."""
+        # Test with a PyTorch config
+        config = ModelConfig("pytorch_lstm")
+        self.assertEqual(config.get_framework(), "pytorch")
+
+        # Test with a TensorFlow config
+        config = ModelConfig("tf_lstm")
+        self.assertEqual(config.get_framework(), "tensorflow")
+
+        # Test with a custom config
+        custom_config = {
+            "name": "custom_model",
+            "framework": "custom_framework"
+        }
+        config = ModelConfig()
+        config.config = custom_config
+        self.assertEqual(config.get_framework(), "custom_framework")
+
+        # Test with a config missing the framework field
+        config.config = {"name": "model_without_framework"}
+        self.assertEqual(config.get_framework(), "pytorch")  # Should default to PyTorch
+
+    def test_get_train_params(self):
+        """Test the get_train_params method."""
+        # Test with a PyTorch config
+        config = ModelConfig("pytorch_lstm")
+        params = config.get_train_params()
+
+        self.assertIsInstance(params, dict)
+        self.assertIn("epochs", params)
+        self.assertIn("batch_size", params)
+        self.assertIn("validation_split", params)
+        self.assertIn("early_stopping", params)
+
+        # Test with a TensorFlow config
+        config = ModelConfig("tf_lstm")
+        params = config.get_train_params()
+
+        self.assertIsInstance(params, dict)
+        self.assertIn("epochs", params)
+        self.assertIn("batch_size", params)
+        self.assertIn("validation_split", params)
+        self.assertIn("callbacks", params)
+
     def test_list_available_configs(self):
         """Test listing available configurations."""
         configs = list_available_configs()
