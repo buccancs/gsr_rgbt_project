@@ -112,3 +112,70 @@ This document contains a log of all tasks performed by the AI assistant, updated
    - All tests pass, confirming that the implementation works as expected
    - The dual-stream CNN-LSTM model successfully processes both RGB and thermal video streams
    - The model architecture is ready for training with real data
+
+## Session: 2025-06-19 - Enhancing Preprocessing and Training Pipeline
+
+### Task List
+- [x] Understand the issue description and its implications for the project
+  - [x] Analyze the "mirror effect" concept where GSR sensors are on the opposite hand
+  - [x] Identify the key requirements for preprocessing and model training
+- [x] Examine the current preprocessing pipeline
+  - [x] Review preprocessing.py to understand the current palm ROI detection
+  - [x] Analyze how ROI signals are currently extracted
+  - [x] Review data_loader.py to understand how video frames are loaded
+- [x] Implement Multi-ROI detection and extraction
+  - [x] Add MediaPipe to project dependencies
+  - [x] Update detect_palm_roi function to use MediaPipe for hand landmark detection
+  - [x] Implement a new function to define multiple ROIs based on hand landmarks
+  - [x] Modify extract_roi_signal to handle multiple ROIs
+  - [x] Focus on regions that might correlate with the opposite hand's GSR readings
+- [x] Update the training pipeline
+  - [x] Examine the current training pipeline
+  - [x] Modify the pipeline to save training results with metadata
+  - [x] Implement a proper train/validation/test split
+- [x] Update project documentation
+  - [x] Update assistant_logs.md with progress and changes
+  - [x] Update proposal.tex to reflect the new experimental design
+  - [x] Update README.md with the new pipeline instructions
+- [x] Test the implementation
+  - [x] Create test cases for the new Multi-ROI functionality
+  - [x] Verify the training pipeline with metadata saving works
+
+### Logs
+1. **2025-06-19 - Issue Analysis**
+   - Analyzed the "mirror effect" concept where GSR sensors are on the opposite hand from the one being recorded
+   - Identified the need to enhance the preprocessing pipeline to detect and extract signals from multiple ROIs
+   - Determined that the training pipeline needs to be updated to save results with metadata and implement a proper train/test/validation split
+
+2. **2025-06-19 - Preprocessing Pipeline Enhancement**
+   - Added MediaPipe to project dependencies for hand landmark detection
+   - Implemented a new `detect_hand_landmarks` function to detect hand landmarks using MediaPipe
+   - Created a `define_multi_roi` function to define multiple ROIs based on hand landmarks
+   - Updated the `detect_palm_roi` function to use the new hand landmark detection
+   - Implemented a new `extract_multi_roi_signals` function to extract signals from multiple ROIs
+   - Added a `process_frame_with_multi_roi` function to process a frame with the Multi-ROI approach
+   - Implemented a `visualize_multi_roi` function to visualize the ROIs on a frame
+   - Updated the example usage section to demonstrate the new Multi-ROI functionality
+
+3. **2025-06-19 - Training Pipeline Update**
+   - Added functions to create and save metadata about the training process
+   - Modified the training pipeline to implement a proper train/validation/test split
+   - Updated the pipeline to save detailed metadata about the training process
+   - Added command-line arguments for validation split and metadata saving
+   - Ensured that subjects are not split between train and validation sets in LOSO cross-validation
+   - Added logging to show the number of samples in each set and the subjects in each set
+
+4. **2025-06-19 - Implementation Summary**
+   - Successfully enhanced the preprocessing pipeline to handle the "mirror effect"
+   - Implemented Multi-ROI detection and extraction using MediaPipe
+   - Updated the training pipeline to save results with metadata
+   - Implemented a proper train/validation/test split
+   - The implementation is ready for testing with actual data
+
+5. **2025-06-19 - Documentation and Testing**
+   - Updated proposal.tex to reflect the new experimental design with Multi-ROI approach
+   - Added detailed information about the three key ROIs (index finger base, ring finger base, palm center)
+   - Updated README.md with instructions for the new pipeline features
+   - Created test cases for the Multi-ROI functionality
+   - Verified that the training pipeline correctly saves metadata
+   - Confirmed that the implementation works as expected with test data

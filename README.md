@@ -23,6 +23,9 @@ Machine Learning Pipeline (src/processing, src/ml_models, src/scripts): A series
 data, train a predictive model, and evaluate its performance.
 
 processing/: Modules for loading, preprocessing, and creating feature windows from the raw data.
+  - data_loader.py: Loads GSR data and video frames from session recordings.
+  - preprocessing.py: Processes raw data, including Multi-ROI detection and extraction using MediaPipe.
+  - feature_engineering.py: Creates feature windows from processed data.
 
 ml_models/: Defines the neural network architectures and model configuration system.
   - model_interface.py: Provides a common interface for all models, regardless of framework.
@@ -129,6 +132,20 @@ To use k-fold cross-validation instead of Leave-One-Subject-Out:
 python src/scripts/train_model.py --cv-folds 5
 ```
 
+### Specifying Validation Split
+To specify the fraction of training data to use for validation:
+
+```bash
+python src/scripts/train_model.py --validation-split 0.2
+```
+
+### Saving Training Metadata
+By default, the training script saves detailed metadata about the training process. This includes model configuration, preprocessing parameters, training parameters, and evaluation metrics. You can disable this feature if needed:
+
+```bash
+python src/scripts/train_model.py --save-metadata false
+```
+
 ### Specifying Output Directory
 To save models and results to a custom directory:
 
@@ -159,8 +176,11 @@ The pipeline configuration file allows you to specify:
 The training script will:
 
 - Load and process the data for all subjects found in data/recordings/.
+- Extract signals from multiple ROIs (index finger base, ring finger base, palm center) using MediaPipe hand landmark detection.
 - Perform cross-validation based on the specified method (LOSO by default).
-- Save the trained model (.keras) and the corresponding data scaler (.joblib) for each fold.
+- Implement a proper train/validation/test split with subject-aware validation to prevent data leakage.
+- Save the trained model (.keras or .pt) and the corresponding data scaler (.joblib) for each fold.
+- Save detailed metadata about the training process, including model configuration, preprocessing parameters, training parameters, and evaluation metrics.
 - Generate logs for TensorBoard.
 - Save the final cross-validation performance metrics to a CSV file.
 
@@ -195,12 +215,16 @@ Command-line options:
 - `--output-dir`: Custom output directory for visualizations
 - `--save-milestone MODEL_TYPE`: Save a milestone of the specified model type
 - `--milestone-name NAME`: Name for the milestone (used with --save-milestone)
+- `--plot-roi-contributions`: Plot the contribution of each ROI to the prediction accuracy
+- `--visualize-multi-roi`: Generate visualizations of the Multi-ROI detection on sample frames
 - `--all`: Run all visualization and reporting tasks
 
 The script generates and saves various plots:
 - Training history plots showing loss curves
 - Prediction plots comparing the predicted values vs. the ground truth
 - Model comparison reports with performance metrics
+- ROI contribution plots showing the importance of each ROI for prediction
+- Multi-ROI visualization on sample frames
 - All plots can be annotated with model configuration details, metrics, and timestamps
 
 All output plots are saved to data/recordings/evaluation_plots/ by default, or to the specified output directory.

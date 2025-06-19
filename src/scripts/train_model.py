@@ -2,6 +2,9 @@
 
 import logging
 import argparse
+import json
+import datetime
+from typing import Dict, Any, Optional, Tuple, List
 
 # --- Import project modules ---
 # Add the project root to the Python path to allow for absolute imports
@@ -13,7 +16,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import joblib
-from sklearn.model_selection import LeaveOneGroupOut
+from sklearn.model_selection import LeaveOneGroupOut, train_test_split
 from sklearn.preprocessing import StandardScaler
 
 project_root = Path(__file__).resolve().parents[2]
@@ -137,6 +140,22 @@ def parse_arguments():
         help="Number of cross-validation folds (0 for LOSO cross-validation)"
     )
 
+    # Validation split options
+    parser.add_argument(
+        "--validation-split", 
+        type=float, 
+        default=0.2,
+        help="Fraction of training data to use for validation (default: 0.2)"
+    )
+
+    # Save metadata options
+    parser.add_argument(
+        "--save-metadata", 
+        action="store_true",
+        default=True,
+        help="Save metadata about the training process"
+    )
+
     return parser.parse_args()
 
 
@@ -196,6 +215,85 @@ def build_model_from_config(input_shape, model_type, config_path=None):
 
     # If we get here, the framework is not supported
     raise ValueError(f"Unsupported framework: {framework}")
+
+
+def create_training_metadata(
+    model_type: str,
+    model_config: ModelConfig,
+    fold: int,
+    subject_id: str,
+    input_shape: Tuple[int, int],
+    preprocessing_params: Dict[str, Any],
+    training_params: Dict[str, Any],
+    metrics: Dict[str, float]
+) -> Dict[str, Any]:
+    """
+    Create metadata about the training process.
+
+    Args:
+        model_type (str): Type of model being trained
+        model_config (ModelConfig): Model configuration object
+        fold (int): Current fold number
+        subject_id (str): ID of the subject being tested on
+        input_shape (Tuple[int, int]): Shape of the input data
+        preprocessing_params (Dict[str, Any]): Parameters used for preprocessing
+        training_params (Dict[str, Any]): Parameters used for training
+        metrics (Dict[str, float]): Evaluation metrics
+
+    Returns:
+        Dict[str, Any]: Metadata about the training process
+    """
+    # Create metadata dictionary
+    metadata = {
+        "model_type": model_type,
+        "model_name": model_config.get_model_name(),
+        "framework": model_config.get_framework(),
+        "fold": fold + 1,
+        "subject_id": subject_id,
+        "input_shape": input_shape,
+        "preprocessing": preprocessing_params,
+        "training": training_params,
+        "metrics": metrics,
+        "timestamp": datetime.datetime.now().isoformat(),
+        "config": model_config.get_config()
+    }
+
+    return metadata
+
+
+def save_training_metadata(
+    metadata: Dict[str, Any],
+    output_dir: Path,
+    model_type: str,
+    fold: int,
+    subject_id: str
+) -> Path:
+    """
+    Save metadata about the training process.
+
+    Args:
+        metadata (Dict[str, Any]): Metadata about the training process
+        output_dir (Path): Directory to save metadata
+        model_type (str): Type of model being trained
+        fold (int): Current fold number
+        subject_id (str): ID of the subject being tested on
+
+    Returns:
+        Path: Path to the saved metadata file
+    """
+    # Create metadata directory
+    metadata_dir = output_dir / "metadata"
+    metadata_dir.mkdir(exist_ok=True, parents=True)
+
+    # Create metadata file path
+    metadata_path = metadata_dir / f"{model_type}_fold_{fold+1}_subject_{subject_id}_metadata.json"
+
+    # Save metadata to file
+    with open(metadata_path, "w") as f:
+        json.dump(metadata, f, indent=2)
+
+    logging.info(f"Saved training metadata to {metadata_path}")
+    return metadata_path
 
 
 def setup_callbacks(model_config, fold, subject_id, output_dir):
@@ -326,15 +424,60 @@ def main():
             subject_id = f"fold{fold+1}"
             logging.info(f"--- Fold {fold+1} ---")
 
-        X_train, X_test = X[train_idx], X[test_idx]
-        y_train, y_test = y[train_idx], y[test_idx]
+        X_train_val, X_test = X[train_idx], X[test_idx]
+        y_train_val, y_test = y[train_idx], y[test_idx]
+
+        # Split training data into training and validation sets
+        if args.validation_split > 0:
+            # If using LOSO, we need to ensure that subjects are not split between train and validation
+            if isinstance(cv, LeaveOneGroupOut):
+                # Get groups for training/validation data
+                groups_train_val = groups[train_idx]
+
+                # Get unique subjects in training/validation data
+                unique_subjects = np.unique(groups_train_val)
+
+                # Randomly select subjects for validation
+                np.random.seed(42)  # For reproducibility
+                val_subjects = np.random.choice(
+                    unique_subjects, 
+                    size=max(1, int(len(unique_subjects) * args.validation_split)), 
+                    replace=False
+                )
+
+                # Create masks for training and validation
+                train_mask = ~np.isin(groups_train_val, val_subjects)
+                val_mask = np.isin(groups_train_val, val_subjects)
+
+                # Split data
+                X_train, X_val = X_train_val[train_mask], X_train_val[val_mask]
+                y_train, y_val = y_train_val[train_mask], y_train_val[val_mask]
+
+                logging.info(f"Split training data into {len(X_train)} training samples and {len(X_val)} validation samples")
+                logging.info(f"Training subjects: {np.unique(groups_train_val[train_mask])}")
+                logging.info(f"Validation subjects: {np.unique(groups_train_val[val_mask])}")
+            else:
+                # If not using LOSO, we can use a simple random split
+                X_train, X_val, y_train, y_val = train_test_split(
+                    X_train_val, y_train_val, 
+                    test_size=args.validation_split, 
+                    random_state=42
+                )
+                logging.info(f"Split training data into {len(X_train)} training samples and {len(X_val)} validation samples")
+        else:
+            # If validation split is 0, use all training data for training
+            X_train, X_val = X_train_val, X_train_val
+            y_train, y_val = y_train_val, y_train_val
+            logging.info("Using all training data for training (no validation split)")
 
         # 4. Scale the features
         scaler = StandardScaler()
         X_train_reshaped = X_train.reshape(-1, X_train.shape[-1])
         scaler.fit(X_train_reshaped)
 
+        # Transform all datasets
         X_train_scaled = scaler.transform(X_train_reshaped).reshape(X_train.shape)
+        X_val_scaled = scaler.transform(X_val.reshape(-1, X_val.shape[-1])).reshape(X_val.shape)
         X_test_scaled = scaler.transform(X_test.reshape(-1, X_test.shape[-1])).reshape(X_test.shape)
 
         # Save the scaler
@@ -353,6 +496,23 @@ def main():
         model_save_dir = output_dir / "models"
         model_save_dir.mkdir(exist_ok=True, parents=True)
 
+        # Create preprocessing parameters dictionary for metadata
+        preprocessing_params = {
+            "gsr_sampling_rate": config.GSR_SAMPLING_RATE,
+            "video_fps": config.FPS,
+            "scaler": "StandardScaler",
+            "validation_split": args.validation_split,
+            "train_samples": len(X_train),
+            "val_samples": len(X_val),
+            "test_samples": len(X_test)
+        }
+
+        # Create training parameters dictionary for metadata
+        training_params = {
+            "framework": model_config.get_framework(),
+            "fit_params": model_config.get_fit_params()
+        }
+
         if is_pytorch_model:
             # For PyTorch models, use the BaseModel interface
             logging.info(f"Training PyTorch model for {args.model_type}...")
@@ -361,13 +521,16 @@ def main():
             history = model.fit(
                 X_train_scaled,
                 y_train,
-                validation_data=(X_test_scaled, y_test)
+                validation_data=(X_val_scaled, y_val)
             )
 
             # Save the model
             model_save_path = model_save_dir / f"{args.model_type}_fold_{fold+1}_subject_{subject_id}.pt"
             model.save(str(model_save_path))
             logging.info(f"Saved model to {model_save_path}")
+
+            # Update training parameters with history
+            training_params["history"] = history
 
         else:
             # For TensorFlow models, use the legacy approach
@@ -385,10 +548,16 @@ def main():
                 y_train,
                 epochs=fit_params.get("epochs", 100),
                 batch_size=fit_params.get("batch_size", 32),
-                validation_split=fit_params.get("validation_split", 0.2),
+                validation_data=(X_val_scaled, y_val),
                 callbacks=callbacks,
                 verbose=2,
             )
+
+            # Update training parameters with history
+            training_params["history"] = {
+                "loss": history.history.get("loss", []),
+                "val_loss": history.history.get("val_loss", [])
+            }
 
         # 6. Evaluate the model on the held-out data
         logging.info(f"Evaluating model on {'subject ' + subject_id if isinstance(cv, LeaveOneGroupOut) else 'test set'}...")
@@ -433,6 +602,11 @@ def main():
                 if test_mse is not None:
                     result[metric_names[1]] = test_mse
 
+                # Create metrics dictionary for metadata
+                metrics = {metric_names[0]: test_loss}
+                if test_mse is not None:
+                    metrics[metric_names[1]] = test_mse
+
             else:
                 # For autoencoder models, calculate reconstruction error
                 predictions = model.predict(X_test_scaled)
@@ -445,6 +619,32 @@ def main():
                 )
 
                 result = {"fold": fold+1, "subject": subject_id, "mse": mse, "mae": mae}
+
+                # Create metrics dictionary for metadata
+                metrics = {"mse": mse, "mae": mae}
+
+        # Save metadata if requested
+        if args.save_metadata:
+            # Create metadata
+            metadata = create_training_metadata(
+                model_type=args.model_type,
+                model_config=model_config,
+                fold=fold,
+                subject_id=subject_id,
+                input_shape=input_shape,
+                preprocessing_params=preprocessing_params,
+                training_params=training_params,
+                metrics=metrics
+            )
+
+            # Save metadata
+            save_training_metadata(
+                metadata=metadata,
+                output_dir=output_dir,
+                model_type=args.model_type,
+                fold=fold,
+                subject_id=subject_id
+            )
 
         fold_results.append(result)
 

@@ -2,12 +2,14 @@
 
 import logging
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List, Dict, Union
 
 import cv2
 import neurokit2 as nk
 import numpy as np
 import pandas as pd
+import mediapipe as mp
+import matplotlib.pyplot as plt
 
 # --- Import from our project ---
 from src.processing.data_loader import SessionDataLoader
@@ -20,6 +22,11 @@ try:
 except ImportError:
     CYTHON_AVAILABLE = False
     logging.warning("Cython optimizations are not available. Using pure Python implementations.")
+
+# Initialize MediaPipe hands module
+mp_hands = mp.solutions.hands
+mp_drawing = mp.solutions.drawing_utils
+mp_drawing_styles = mp.solutions.drawing_styles
 
 # --- Setup logging for this module ---
 logging.basicConfig(
@@ -85,13 +92,137 @@ def process_gsr_signal(
         return None
 
 
+def detect_hand_landmarks(frame: np.ndarray) -> Optional[List[Dict[str, np.ndarray]]]:
+    """
+    Detects hand landmarks in a video frame using MediaPipe.
+
+    This function uses the MediaPipe Hands module to detect hand landmarks
+    in the input frame. It returns a list of dictionaries, each containing
+    the landmarks for one detected hand.
+
+    Args:
+        frame (np.ndarray): The input video frame (BGR format).
+
+    Returns:
+        Optional[List[Dict[str, np.ndarray]]]: A list of dictionaries, each containing
+                                              the landmarks for one detected hand.
+                                              Returns None if no hands are found.
+    """
+    # Convert BGR to RGB for MediaPipe
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+    # Process the frame with MediaPipe Hands
+    with mp_hands.Hands(
+        static_image_mode=False,
+        max_num_hands=1,  # We only need to detect one hand
+        min_detection_confidence=0.5
+    ) as hands:
+        results = hands.process(rgb_frame)
+
+        if not results.multi_hand_landmarks:
+            logging.warning("No hands detected in the frame.")
+            return None
+
+        # Extract landmarks for each detected hand
+        hand_landmarks_list = []
+        for hand_landmarks in results.multi_hand_landmarks:
+            # Convert landmarks to numpy arrays
+            landmarks = {}
+            for idx, landmark in enumerate(hand_landmarks.landmark):
+                landmarks[idx] = np.array([landmark.x * frame.shape[1], 
+                                          landmark.y * frame.shape[0], 
+                                          landmark.z])
+
+            hand_landmarks_list.append(landmarks)
+
+            # Draw landmarks on the frame for visualization (debug only)
+            # mp_drawing.draw_landmarks(
+            #     frame,
+            #     hand_landmarks,
+            #     mp_hands.HAND_CONNECTIONS,
+            #     mp_drawing_styles.get_default_hand_landmarks_style(),
+            #     mp_drawing_styles.get_default_hand_connections_style()
+            # )
+
+        return hand_landmarks_list
+
+
+def define_multi_roi(frame: np.ndarray, hand_landmarks: Dict[str, np.ndarray]) -> Dict[str, Tuple[int, int, int, int]]:
+    """
+    Defines multiple Regions of Interest (ROIs) based on hand landmarks.
+
+    This function defines several ROIs on the palm that are physiologically
+    significant for GSR prediction:
+    1. Base of the index finger
+    2. Base of the ring finger
+    3. Center of the palm
+
+    Args:
+        frame (np.ndarray): The input video frame.
+        hand_landmarks (Dict[str, np.ndarray]): Dictionary of hand landmarks.
+
+    Returns:
+        Dict[str, Tuple[int, int, int, int]]: Dictionary mapping ROI names to
+                                             bounding boxes (x, y, width, height).
+    """
+    h, w, _ = frame.shape
+    roi_size = int(min(h, w) * 0.1)  # ROI size is 10% of the smaller dimension
+
+    # MediaPipe hand landmark indices
+    # 5: Index finger MCP (base)
+    # 9: Middle finger MCP (base)
+    # 13: Ring finger MCP (base)
+    # 17: Pinky finger MCP (base)
+    # 0: Wrist
+
+    # Define ROIs
+    rois = {}
+
+    # 1. Base of the index finger (landmark 5)
+    if 5 in hand_landmarks:
+        x, y, _ = hand_landmarks[5]
+        x, y = int(x), int(y)
+        rois["index_finger_base"] = (
+            max(0, x - roi_size // 2),
+            max(0, y - roi_size // 2),
+            min(roi_size, w - x + roi_size // 2),
+            min(roi_size, h - y + roi_size // 2)
+        )
+
+    # 2. Base of the ring finger (landmark 13)
+    if 13 in hand_landmarks:
+        x, y, _ = hand_landmarks[13]
+        x, y = int(x), int(y)
+        rois["ring_finger_base"] = (
+            max(0, x - roi_size // 2),
+            max(0, y - roi_size // 2),
+            min(roi_size, w - x + roi_size // 2),
+            min(roi_size, h - y + roi_size // 2)
+        )
+
+    # 3. Center of the palm (average of landmarks 0, 5, 9, 13, 17)
+    palm_landmarks = [0, 5, 9, 13, 17]
+    if all(idx in hand_landmarks for idx in palm_landmarks):
+        x = sum(hand_landmarks[idx][0] for idx in palm_landmarks) / len(palm_landmarks)
+        y = sum(hand_landmarks[idx][1] for idx in palm_landmarks) / len(palm_landmarks)
+        x, y = int(x), int(y)
+        rois["palm_center"] = (
+            max(0, x - roi_size // 2),
+            max(0, y - roi_size // 2),
+            min(roi_size, w - x + roi_size // 2),
+            min(roi_size, h - y + roi_size // 2)
+        )
+
+    return rois
+
+
 def detect_palm_roi(frame: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
     """
     Detects the palm region in a video frame.
 
-    For this MVP, we use a simple placeholder: a fixed rectangle in the center of
-    the frame. In a full implementation, this should be replaced with a robust
-    hand/palm detection model (e.g., from MediaPipe or a custom-trained detector).
+    This function is maintained for backward compatibility. It uses the new
+    hand landmark detection to find the palm center ROI, or falls back to
+    a simple placeholder if no hand is detected.
 
     Args:
         frame (np.ndarray): The input video frame.
@@ -101,14 +232,27 @@ def detect_palm_roi(frame: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
                                              (x, y, width, height) of the detected palm.
                                              Returns None if no palm is found.
     """
-    h, w, _ = frame.shape
+    # Try to detect hand landmarks
+    hand_landmarks_list = detect_hand_landmarks(frame)
 
-    # Placeholder ROI: a rectangle covering 40% of the width and 60% of the height, centered.
+    if hand_landmarks_list and len(hand_landmarks_list) > 0:
+        # Use the first detected hand
+        hand_landmarks = hand_landmarks_list[0]
+
+        # Get the palm center ROI
+        rois = define_multi_roi(frame, hand_landmarks)
+
+        if "palm_center" in rois:
+            return rois["palm_center"]
+
+    # Fallback to the original placeholder method if hand detection fails
+    h, w, _ = frame.shape
     roi_width = int(w * 0.4)
     roi_height = int(h * 0.6)
     roi_x = (w - roi_width) // 2
     roi_y = (h - roi_height) // 2
 
+    logging.warning("Using fallback palm ROI detection method.")
     return (roi_x, roi_y, roi_width, roi_height)
 
 
@@ -140,6 +284,91 @@ def extract_roi_signal(frame: np.ndarray, roi: Tuple[int, int, int, int]) -> np.
         # Calculate the mean value for each channel within the ROI
         mean_signal = cv2.mean(palm_region)[:3]  # Take only the B, G, R components
         return np.array(mean_signal)
+
+
+def extract_multi_roi_signals(frame: np.ndarray, rois: Dict[str, Tuple[int, int, int, int]]) -> Dict[str, np.ndarray]:
+    """
+    Extracts mean pixel values from multiple Regions of Interest (ROIs).
+
+    Args:
+        frame (np.ndarray): The video frame from which to extract the signals.
+        rois (Dict[str, Tuple[int, int, int, int]]): Dictionary mapping ROI names to
+                                                    bounding boxes (x, y, w, h).
+
+    Returns:
+        Dict[str, np.ndarray]: Dictionary mapping ROI names to arrays containing
+                              the mean value for each channel (e.g., [R, G, B]).
+    """
+    signals = {}
+    for roi_name, roi in rois.items():
+        signals[roi_name] = extract_roi_signal(frame, roi)
+    return signals
+
+
+def process_frame_with_multi_roi(frame: np.ndarray) -> Dict[str, np.ndarray]:
+    """
+    Processes a video frame to extract signals from multiple ROIs.
+
+    This function detects hand landmarks in the frame, defines multiple ROIs,
+    and extracts signals from each ROI.
+
+    Args:
+        frame (np.ndarray): The input video frame.
+
+    Returns:
+        Dict[str, np.ndarray]: Dictionary mapping ROI names to arrays containing
+                              the mean value for each channel (e.g., [R, G, B]).
+                              Returns an empty dictionary if no hand is detected.
+    """
+    # Detect hand landmarks
+    hand_landmarks_list = detect_hand_landmarks(frame)
+
+    if not hand_landmarks_list or len(hand_landmarks_list) == 0:
+        logging.warning("No hands detected in the frame. Cannot extract multi-ROI signals.")
+        return {}
+
+    # Use the first detected hand
+    hand_landmarks = hand_landmarks_list[0]
+
+    # Define multiple ROIs
+    rois = define_multi_roi(frame, hand_landmarks)
+
+    # Extract signals from each ROI
+    signals = extract_multi_roi_signals(frame, rois)
+
+    return signals
+
+
+def visualize_multi_roi(frame: np.ndarray, rois: Dict[str, Tuple[int, int, int, int]]) -> np.ndarray:
+    """
+    Visualizes multiple ROIs on a video frame.
+
+    Args:
+        frame (np.ndarray): The input video frame.
+        rois (Dict[str, Tuple[int, int, int, int]]): Dictionary mapping ROI names to
+                                                    bounding boxes (x, y, w, h).
+
+    Returns:
+        np.ndarray: The input frame with ROIs visualized.
+    """
+    # Create a copy of the frame to avoid modifying the original
+    vis_frame = frame.copy()
+
+    # Define colors for different ROIs
+    colors = {
+        "index_finger_base": (0, 255, 0),    # Green
+        "ring_finger_base": (0, 0, 255),     # Red
+        "palm_center": (255, 0, 0)           # Blue
+    }
+
+    # Draw ROIs on the frame
+    for roi_name, roi in rois.items():
+        x, y, w, h = roi
+        color = colors.get(roi_name, (255, 255, 255))  # Default to white
+        cv2.rectangle(vis_frame, (x, y), (x + w, y + h), color, 2)
+        cv2.putText(vis_frame, roi_name, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+
+    return vis_frame
 
 
 # --- Example Usage ---
@@ -180,11 +409,72 @@ if __name__ == "__main__":
         print("\nProcessing a dummy video frame...")
         dummy_frame = np.random.randint(0, 256, (480, 640, 3), dtype=np.uint8)
 
-        # Detect palm ROI
+        # Detect palm ROI (legacy method)
         palm_roi = detect_palm_roi(dummy_frame)
         if palm_roi:
-            print(f"Detected palm ROI (placeholder): {palm_roi}")
+            print(f"Detected palm ROI (legacy method): {palm_roi}")
 
             # Extract signal from ROI
             roi_signal = extract_roi_signal(dummy_frame, palm_roi)
             print(f"Extracted mean ROI signal (B, G, R): {roi_signal}")
+
+        # 4. Test Multi-ROI processing
+        print("\nTesting Multi-ROI processing...")
+
+        # Create a more realistic dummy frame with a hand-like shape
+        # (This is just for demonstration - in real use, you'd use actual video frames)
+        dummy_hand_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        # Draw a simple hand shape
+        cv2.circle(dummy_hand_frame, (320, 240), 50, (200, 200, 200), -1)  # Palm
+        cv2.rectangle(dummy_hand_frame, (320, 190), (340, 120), (200, 200, 200), -1)  # Index finger
+        cv2.rectangle(dummy_hand_frame, (350, 190), (370, 130), (200, 200, 200), -1)  # Middle finger
+        cv2.rectangle(dummy_hand_frame, (380, 190), (400, 140), (200, 200, 200), -1)  # Ring finger
+        cv2.rectangle(dummy_hand_frame, (410, 190), (430, 150), (200, 200, 200), -1)  # Pinky finger
+        cv2.rectangle(dummy_hand_frame, (290, 190), (310, 160), (200, 200, 200), -1)  # Thumb
+
+        # Note: MediaPipe might not detect this artificial hand shape.
+        # In real usage, you would use actual video frames with real hands.
+
+        # Process the frame with Multi-ROI
+        multi_roi_signals = process_frame_with_multi_roi(dummy_hand_frame)
+
+        if multi_roi_signals:
+            print("Extracted Multi-ROI signals:")
+            for roi_name, signal in multi_roi_signals.items():
+                print(f"  {roi_name}: {signal}")
+
+            # Get the ROIs that were used
+            hand_landmarks_list = detect_hand_landmarks(dummy_hand_frame)
+            if hand_landmarks_list:
+                hand_landmarks = hand_landmarks_list[0]
+                rois = define_multi_roi(dummy_hand_frame, hand_landmarks)
+
+                # Visualize the ROIs
+                vis_frame = visualize_multi_roi(dummy_hand_frame, rois)
+
+                # Save the visualization (in a real application, you might display it instead)
+                cv2.imwrite("multi_roi_visualization.jpg", vis_frame)
+                print("Saved Multi-ROI visualization to 'multi_roi_visualization.jpg'")
+        else:
+            print("MediaPipe could not detect a hand in the dummy frame.")
+            print("This is expected for artificial images. In real usage with actual video frames, detection should work.")
+
+            # For demonstration purposes, let's create some dummy ROIs
+            dummy_rois = {
+                "index_finger_base": (320, 190, 20, 20),
+                "ring_finger_base": (380, 190, 20, 20),
+                "palm_center": (320, 240, 30, 30)
+            }
+
+            # Extract signals from these dummy ROIs
+            dummy_signals = extract_multi_roi_signals(dummy_hand_frame, dummy_rois)
+            print("\nExtracted signals from dummy ROIs:")
+            for roi_name, signal in dummy_signals.items():
+                print(f"  {roi_name}: {signal}")
+
+            # Visualize the dummy ROIs
+            vis_frame = visualize_multi_roi(dummy_hand_frame, dummy_rois)
+
+            # Save the visualization
+            cv2.imwrite("dummy_multi_roi_visualization.jpg", vis_frame)
+            print("Saved dummy Multi-ROI visualization to 'dummy_multi_roi_visualization.jpg'")

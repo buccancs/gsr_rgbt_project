@@ -7,3 +7,5 @@ cython
 scikit-learn
 pandas
 pyyaml
+mediapipe
+matplotlib
