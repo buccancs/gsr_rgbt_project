@@ -1,3 +1,5 @@
+# src/data_collection/utils/timestamp_thread.py
+
 import logging
 import time
 from PyQt5.QtCore import QThread, pyqtSignal

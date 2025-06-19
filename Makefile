@@ -7,7 +7,7 @@
 PYTHON = python
 
 # --- Phony targets do not correspond to actual files ---
-.PHONY: all setup clean test run_app train inference evaluate pipeline mock_data build_cython
+.PHONY: all setup clean test test_sync run_app train inference evaluate pipeline mock_data build_cython
 
 # --- Main Targets ---
 
@@ -20,6 +20,7 @@ all:
 	@echo "  make clean        - Removes temporary files and build artifacts."
 	@echo "  make build_cython - Builds Cython extensions for performance optimization."
 	@echo "  make test         - Runs system validation checks for cameras and dependencies."
+	@echo "  make test_sync    - Runs data synchronization test for all devices."
 	@echo "  make run_app      - Runs the data collection GUI application."
 	@echo "  make mock_data    - Generates synthetic data for testing the pipeline."
 	@echo "  make train        - Runs the model training and cross-validation script."
@@ -56,7 +57,8 @@ clean:
 	@rm -f data/recordings/evaluation_plots/*.png
 	@rm -f data/recordings/cross_validation_results.csv
 	@rm -rf build/ dist/ *.egg-info/
-	@rm -f src/processing/*.c src/processing/*.so src/processing/*.pyd
+ @rm -f src/ml_pipeline/preprocessing/*.c src/ml_pipeline/preprocessing/*.so src/ml_pipeline/preprocessing/*.pyd
+ @rm -f src/ml_pipeline/feature_engineering/*.c src/ml_pipeline/feature_engineering/*.so src/ml_pipeline/feature_engineering/*.pyd
 	@echo "Clean complete."
 
 # --- Application and Pipeline Targets ---
@@ -64,7 +66,12 @@ clean:
 # Target to run the system validation script
 test:
 	@echo ">>> Running system validation checks..."
-	@$(PYTHON) src/scripts/check_system.py
+	@$(PYTHON) src/system/validation/check_system.py
+
+# Target to run the synchronization test
+test_sync:
+	@echo ">>> Running data synchronization test..."
+	@$(PYTHON) src/system/validation/test_synchronization.py
 
 # Target to run the data collection application
 run_app:
@@ -74,22 +81,22 @@ run_app:
 # Target to run the model training script
 train:
 	@echo ">>> Starting Model Training (LOSO Cross-Validation)..."
-	@$(PYTHON) src/scripts/train_model.py
+	@$(PYTHON) src/ml_pipeline/training/train_model.py
 
 # Target to run the inference script
 inference:
 	@echo ">>> Running Inference on Test Data..."
-	@$(PYTHON) src/scripts/inference.py
+	@$(PYTHON) src/ml_pipeline/evaluation/inference.py
 
 # Target to run the evaluation script
 evaluate:
 	@echo ">>> Generating Evaluation Plots and Metrics..."
-	@$(PYTHON) src/scripts/evaluate_model.py
+	@$(PYTHON) src/ml_pipeline/evaluation/evaluate_model.py
 
 # Target to generate mock data for testing the pipeline
 mock_data:
 	@echo ">>> Generating Mock Data for Pipeline Testing..."
-	@$(PYTHON) src/scripts/create_mock_data.py
+	@$(PYTHON) src/system/data_generation/create_mock_data.py
 
 # Target to run the full machine learning pipeline sequentially
 pipeline: build_cython train inference evaluate

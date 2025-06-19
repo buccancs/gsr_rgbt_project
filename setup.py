@@ -41,5 +41,6 @@ setup(
         "mediapipe",
         "matplotlib",
         "PyQt5",
+        "pyserial",
     ],
 )

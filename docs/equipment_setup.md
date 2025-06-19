@@ -89,8 +89,8 @@ The system is designed for high-precision temporal alignment between all data st
 ### 2. Python Environment
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/gsr-rgbt-project.git
-   cd gsr_rgbt_project
+   git clone https://github.com/your-organization/gsr-rgbt-project.git
+   cd gsr-rgbt-project
    ```
 
 2. Set up the Python environment:

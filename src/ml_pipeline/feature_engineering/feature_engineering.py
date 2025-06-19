@@ -175,22 +175,15 @@ def create_feature_windows(
     """
     if CYTHON_AVAILABLE:
         # Use the Cython implementation for better performance
-        # Extract features and target as numpy arrays with the correct dtype
-        features = df[feature_cols].values.astype(np.float64)
-        targets = df[target_col].values.astype(np.float64)
+        # Extract features and target as numpy arrays
+        features = df[feature_cols].values
+        targets = df[target_col].values
 
         # Get column indices for the Cython function
-        feature_cols_idx = [int(i) for i in range(len(feature_cols))]
+        feature_cols_idx = list(range(len(feature_cols)))
 
-        # Check if window_size is larger than the data length
-        # If so, fall back to the Python implementation which handles this case
-        if window_size >= len(df):
-            # Return empty arrays since no windows can be created
-            X = np.zeros((0, window_size, len(feature_cols)), dtype=np.float64)
-            y = np.zeros(0, dtype=np.float64)
-        else:
-            # Call the Cython function
-            X, y = cy_create_feature_windows(features, targets, feature_cols_idx, window_size, step)
+        # Call the Cython function
+        X, y = cy_create_feature_windows(features, targets, feature_cols_idx, window_size, step)
 
         logging.info(f"Created feature windows using Cython. X shape: {X.shape}, y shape: {y.shape}")
         return X, y

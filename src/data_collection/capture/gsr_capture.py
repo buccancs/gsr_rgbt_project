@@ -1,4 +1,4 @@
-# src/capture/gsr_capture.py
+# src/data_collection/capture/gsr_capture.py
 
 import logging
 import random
@@ -6,7 +6,7 @@ import time
 
 from PyQt5.QtCore import pyqtSignal
 
-from src.capture.base_capture import BaseCaptureThread
+from src.data_collection.capture.base_capture import BaseCaptureThread
 
 # --- Setup logging for this module ---
 # Follows the same format for consistency across the application.

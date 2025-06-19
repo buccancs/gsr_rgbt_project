@@ -11,3 +11,6 @@ mediapipe
 matplotlib
 PyQt5
 seaborn
+pyserial
+pyspin
+tensorflow

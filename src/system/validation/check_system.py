@@ -1,4 +1,4 @@
-# src/scripts/check_system.py
+# src/system/validation/check_system.py
 
 import logging
 import sys
@@ -9,7 +9,7 @@ from pathlib import Path
 import cv2
 
 # --- Add project root to path for absolute imports ---
-project_root = Path(__file__).resolve().parents[2]
+project_root = Path(__file__).resolve().parents[3]
 sys.path.append(str(project_root))
 
 from src import config

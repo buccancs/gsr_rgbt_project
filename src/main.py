@@ -7,12 +7,12 @@ from pathlib import Path
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtCore import QObject, QThread, pyqtSlot
 
-from src.gui.main_window import MainWindow
-from src.capture.video_capture import VideoCaptureThread
-from src.capture.thermal_capture import ThermalCaptureThread
-from src.capture.gsr_capture import GsrCaptureThread
-from src.utils.data_logger import DataLogger
-from src.utils.timestamp_thread import TimestampThread
+from src.data_collection.gui.main_window import MainWindow
+from src.data_collection.capture.video_capture import VideoCaptureThread
+from src.data_collection.capture.thermal_capture import ThermalCaptureThread
+from src.data_collection.capture.gsr_capture import GsrCaptureThread
+from src.data_collection.utils.data_logger import DataLogger
+from src.data_collection.utils.timestamp_thread import TimestampThread
 from src import config
 
 # --- Setup logging ---

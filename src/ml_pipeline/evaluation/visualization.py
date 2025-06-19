@@ -1,4 +1,4 @@
-# src/evaluation/visualization.py
+# src/ml_pipeline/evaluation/visualization.py
 
 import logging
 from pathlib import Path

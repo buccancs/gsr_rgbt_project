@@ -39,6 +39,10 @@ A series of scripts to process the collected data, train a predictive model, and
 
 - **scripts/**: Contains the high-level scripts for training, inference, and evaluation.
 
+### Proposed Improved Architecture
+
+For future development, an improved architecture has been proposed to better organize the codebase and improve maintainability. See [src/ARCHITECTURE.md](src/ARCHITECTURE.md) for details.
+
 ## Setup and Installation
 
 Follow these steps to set up the project environment.
@@ -48,8 +52,8 @@ Follow these steps to set up the project environment.
 Clone this repository to your local machine.
 
 ```bash
-git clone https://github.com/your-username/gsr-rgbt-project.git
-cd gsr_rgbt_project
+git clone https://github.com/your-organization/gsr-rgbt-project.git
+cd gsr-rgbt-project
 ```
 
 ### 2. Create a Python Virtual Environment
@@ -76,6 +80,28 @@ Install all required Python packages using the requirements.txt file.
 pip install -r requirements.txt
 ```
 
+### 3a. Automated Setup (Alternative)
+
+Alternatively, you can use the provided unified tool script to automate the environment setup process:
+
+```bash
+# Make the script executable (if needed)
+chmod +x gsr_rgbt_tools.sh
+
+# Run the setup command
+./gsr_rgbt_tools.sh setup
+```
+
+This script will:
+- Check for required system dependencies
+- Set up a Python virtual environment
+- Install required Python packages
+- Build Cython extensions
+- Run system validation checks
+- Provide guidance for hardware-specific setup
+
+For more information about the unified tool script, see [docs/GUIDE.md](docs/GUIDE.md).
+
 ### 4. Configure Hardware
 
 Before running the data collection application, you must configure your hardware settings in src/config.py:
@@ -85,6 +111,60 @@ Before running the data collection application, you must configure your hardware
 
 - **GSR Sensor**: If you are using a physical Shimmer sensor, set GSR_SIMULATION_MODE = False and update GSR_SENSOR_PORT to
   the correct serial port (e.g., 'COM3' on Windows).
+
+### 5. Test System and Synchronization
+
+After configuring your hardware, you should run the system validation and synchronization tests:
+
+```bash
+# Run both system validation and synchronization tests
+./gsr_rgbt_tools.sh test
+
+# Alternatively, you can use the individual scripts or make targets
+python src/scripts/check_system.py
+python src/scripts/test_synchronization.py
+# or
+make test
+make test_sync
+```
+
+The system validation check verifies that all required dependencies are installed and that the configured devices can be accessed. The synchronization test verifies that the data synchronization mechanism is working properly.
+
+For more information about the data synchronization approach used in this project, see [docs/synchronization.md](docs/synchronization.md).
+
+### 6. Run Everything (All-in-One Command)
+
+If you want to run all components of the system in sequence, you can use the unified tool script:
+
+```bash
+# Run everything (validation, tests, pipeline, and optionally the app)
+./gsr_rgbt_tools.sh run
+```
+
+This command will:
+- Check and set up the Python virtual environment (if needed)
+- Run system validation checks
+- Run synchronization tests
+- Generate mock data (if no data exists)
+- Run the full ML pipeline (training, inference, evaluation)
+- Optionally run the data collection application
+
+The script includes error handling and will continue with subsequent steps even if some steps fail (with appropriate warnings). This is useful for running the entire system in one go, especially for testing or demonstration purposes.
+
+You can also run specific components:
+
+```bash
+# Run just the data collection application
+./gsr_rgbt_tools.sh run --component=app
+
+# Run just the ML pipeline
+./gsr_rgbt_tools.sh run --component=pipeline
+
+# Generate mock data
+./gsr_rgbt_tools.sh run --component=mock_data
+```
+
+For more information about the unified tool script, see [docs/GUIDE.md](docs/GUIDE.md).
 
 ## How to Use the Pipeline
 

@@ -1,11 +1,11 @@
-# src/capture/thermal_capture.py
+# src/data_collection/capture/thermal_capture.py
 
 import logging
 import time
 import numpy as np
 from PyQt5.QtCore import pyqtSignal
 
-from src.capture.base_capture import BaseCaptureThread
+from src.data_collection.capture.base_capture import BaseCaptureThread
 
 # --- Setup logging ---
 logging.basicConfig(

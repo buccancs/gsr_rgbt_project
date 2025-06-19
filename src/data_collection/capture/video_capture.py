@@ -1,4 +1,4 @@
-# src/capture/video_capture.py
+# src/data_collection/capture/video_capture.py
 
 import logging
 import sys
@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 from PyQt5.QtCore import pyqtSignal
 
-from src.capture.base_capture import BaseCaptureThread
+from src.data_collection.capture.base_capture import BaseCaptureThread
 
 # --- Setup logging ---
 # This allows for more structured output than print statements.
