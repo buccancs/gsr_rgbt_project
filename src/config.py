@@ -33,7 +33,7 @@ OUTPUT_DIR = Path("./data/recordings")
 # This section will be used by the gsr_capture module.
 # For a real Shimmer3 sensor, this would be the COM port (e.g., 'COM3' on Windows).
 GSR_SENSOR_PORT = "COM3"
-GSR_SAMPLING_RATE = 32  # Hz, a common rate for physiological signals.
+GSR_SAMPLING_RATE = 128  # Hz, matching the Shimmer3 GSR+ unit sampling rate.
 GSR_SIMULATION_MODE = True  # Set to False when using a real sensor.
 
 # --- Experimental Protocol Tasks ---

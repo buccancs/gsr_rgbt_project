@@ -20,14 +20,59 @@ def load_gsr_data(session_path: Path) -> Optional[pd.DataFrame]:
     """
     Loads GSR data from the CSV file in a session directory.
 
+    This function supports both the original format (gsr_data.csv with timestamp and gsr_value columns)
+    and the Shimmer3 GSR+ format (tab-separated CSV with multiple columns including GSR and PPG data).
+
     Args:
         session_path (Path): The path to the root directory of a single recording session.
 
     Returns:
         pd.DataFrame: A pandas DataFrame containing 'timestamp' and 'gsr_value' columns,
-                      with the timestamp converted to a datetime object. Returns None if the
+                      and optionally 'ppg_value' and 'hr_value' columns if available.
+                      The timestamp is converted to a datetime object. Returns None if the
                       file is not found or cannot be read.
     """
+    # First, try to find a Shimmer data file
+    shimmer_files = list(session_path.glob("*Shimmer*Calibrated*.csv"))
+
+    if shimmer_files:
+        # Use the first Shimmer file found
+        shimmer_file = shimmer_files[0]
+        try:
+            # Shimmer files are tab-separated
+            # Skip the first row which contains "sep=\t" and the third row which contains the units
+            df = pd.read_csv(shimmer_file, sep='\t', skiprows=[0, 2])
+
+            # Extract the timestamp, GSR, PPG, and HR columns
+            # Rename columns for consistency with the rest of the codebase
+            renamed_df = pd.DataFrame()
+
+            # Convert timestamp to datetime
+            timestamp_col = [col for col in df.columns if 'Timestamp' in col][0]
+            renamed_df['timestamp'] = pd.to_datetime(df[timestamp_col], format='%Y/%m/%d %H:%M:%S.%f')
+
+            # Extract GSR data (in kOhms)
+            gsr_col = [col for col in df.columns if 'GSR_CAL' in col][0]
+            renamed_df['gsr_value'] = df[gsr_col]
+
+            # Extract PPG data if available
+            ppg_cols = [col for col in df.columns if 'PPG_A13_CAL' in col and 'PPGToHR' not in col]
+            if ppg_cols:
+                renamed_df['ppg_value'] = df[ppg_cols[0]]
+
+            # Extract heart rate data if available
+            hr_cols = [col for col in df.columns if 'PPGToHR' in col]
+            if hr_cols:
+                renamed_df['hr_value'] = df[hr_cols[0]]
+
+            logging.info(f"Successfully loaded {len(renamed_df)} data points from Shimmer file: {shimmer_file}")
+            return renamed_df
+
+        except Exception as e:
+            logging.error(f"Failed to load or parse Shimmer data from {shimmer_file}: {e}")
+            # Fall back to looking for the standard gsr_data.csv file
+
+    # If no Shimmer file was found or it couldn't be parsed, try the original format
     gsr_file = session_path / "gsr_data.csv"
     if not gsr_file.exists():
         logging.error(f"GSR data file not found at: {gsr_file}")

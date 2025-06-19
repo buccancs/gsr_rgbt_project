@@ -74,6 +74,39 @@ class TestSessionDataLoader(unittest.TestCase):
         self.assertIn("gsr_value", gsr_df.columns)
         self.assertTrue(pd.api.types.is_datetime64_any_dtype(gsr_df["timestamp"]))
 
+    def test_get_shimmer_data_success(self):
+        """Test successful loading and parsing of Shimmer data."""
+        # Create a temporary directory with a dummy Shimmer file
+        shimmer_dir = self.test_dir / "shimmer_session"
+        shimmer_dir.mkdir(exist_ok=True)
+
+        # Create a dummy Shimmer CSV file
+        shimmer_file = shimmer_dir / "SampleGSRPPG_Session1_Shimmer_B640_Calibrated_SD.csv"
+        with open(shimmer_file, "w", newline="") as f:
+            f.write('"sep=\\t"\n')
+            f.write("Shimmer_B640_Timestamp_FormattedUnix_CAL\tShimmer_B640_GSR_CAL\tShimmer_B640_PPGToHR_PPG_A13_CAL\tShimmer_B640_PPG_A13_CAL\n")
+            f.write("yyyy/mm/dd hh:mm:ss.000\tkOhms\tBPM\tmV\n")  # This line is skipped during parsing
+            # Use actual date strings that can be parsed
+            f.write("2015/06/23 15:51:15.282\t1257.4586157795\t-1.0\t1180.95238095238\n")
+            f.write("2015/06/23 15:51:15.290\t1257.4586157795\t-1.0\t1175.82417582418\n")
+
+        # Test loading the Shimmer data
+        loader = SessionDataLoader(shimmer_dir)
+        gsr_df = loader.get_gsr_data()
+
+        # Verify the data was loaded correctly
+        self.assertIsInstance(gsr_df, pd.DataFrame)
+        self.assertFalse(gsr_df.empty)
+        self.assertIn("timestamp", gsr_df.columns)
+        self.assertIn("gsr_value", gsr_df.columns)
+        self.assertIn("ppg_value", gsr_df.columns)
+        self.assertIn("hr_value", gsr_df.columns)
+        self.assertTrue(pd.api.types.is_datetime64_any_dtype(gsr_df["timestamp"]))
+
+        # Clean up
+        shimmer_file.unlink()
+        shimmer_dir.rmdir()
+
     def test_get_gsr_data_file_not_found(self):
         """Test that get_gsr_data returns None if the CSV is missing."""
         # Create a temporary empty directory

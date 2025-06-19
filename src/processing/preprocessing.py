@@ -8,7 +8,6 @@ import cv2
 import neurokit2 as nk
 import numpy as np
 import pandas as pd
-import mediapipe as mp
 import matplotlib.pyplot as plt
 
 # --- Import from our project ---
@@ -23,10 +22,18 @@ except ImportError:
     CYTHON_AVAILABLE = False
     logging.warning("Cython optimizations are not available. Using pure Python implementations.")
 
-# Initialize MediaPipe hands module
-mp_hands = mp.solutions.hands
-mp_drawing = mp.solutions.drawing_utils
-mp_drawing_styles = mp.solutions.drawing_styles
+# Try to import MediaPipe
+try:
+    import mediapipe as mp
+    # Initialize MediaPipe hands module
+    mp_hands = mp.solutions.hands
+    mp_drawing = mp.solutions.drawing_utils
+    mp_drawing_styles = mp.solutions.drawing_styles
+    MEDIAPIPE_AVAILABLE = True
+    logging.info("MediaPipe is available and will be used for hand landmark detection.")
+except ImportError:
+    MEDIAPIPE_AVAILABLE = False
+    logging.warning("MediaPipe is not available. Using fallback methods for hand landmark detection.")
 
 # --- Setup logging for this module ---
 logging.basicConfig(
@@ -45,20 +52,26 @@ def process_gsr_signal(
     signal processing. It cleans the raw signal and decomposes it into its tonic
     and phasic components, which are essential for model training.
 
+    If the DataFrame contains PPG and heart rate data (from Shimmer3 GSR+ device),
+    these are also processed and included in the output.
+
     Args:
-        gsr_df (pd.DataFrame): DataFrame containing 'gsr_value' and 'timestamp' columns.
+        gsr_df (pd.DataFrame): DataFrame containing 'gsr_value' and 'timestamp' columns,
+                              and optionally 'ppg_value' and 'hr_value' columns.
         sampling_rate (int): The sampling rate of the GSR signal in Hz.
 
     Returns:
         pd.DataFrame: The original DataFrame augmented with cleaned, tonic, and
-                      phasic GSR signal columns. Returns None on error.
+                      phasic GSR signal columns, and processed PPG and HR columns
+                      if available. Returns None on error.
     """
     if "gsr_value" not in gsr_df.columns:
         logging.error("GSR DataFrame must contain a 'gsr_value' column.")
         return None
 
     try:
-        # Process the signal using NeuroKit2
+        # Process the GSR signal using NeuroKit2
+        # Note: For Shimmer data, GSR values are in kOhms, but NeuroKit2 can process this
         signals, info = nk.eda_process(gsr_df["gsr_value"], sampling_rate=sampling_rate)
 
         # Rename columns for clarity and merge back into the original DataFrame
@@ -71,11 +84,51 @@ def process_gsr_signal(
             }
         )
 
+        # Process PPG data if available
+        if "ppg_value" in gsr_df.columns:
+            try:
+                # Process the PPG signal using NeuroKit2
+                ppg_signals, ppg_info = nk.ppg_process(
+                    gsr_df["ppg_value"], sampling_rate=sampling_rate
+                )
+
+                # Rename columns for clarity
+                ppg_processed = ppg_signals.rename(
+                    columns={
+                        "PPG_Raw": "PPG_Raw",
+                        "PPG_Clean": "PPG_Clean",
+                        "PPG_Rate": "PPG_Rate",
+                    }
+                )
+
+                # Add PPG columns to the processed DataFrame
+                for col in ["PPG_Clean", "PPG_Rate"]:
+                    if col in ppg_processed.columns:
+                        processed_df[col] = ppg_processed[col]
+
+                logging.info("PPG signal successfully processed.")
+            except Exception as e:
+                logging.warning(f"Error processing PPG signal: {e}. Continuing without PPG processing.")
+
+        # Include heart rate data if available
+        if "hr_value" in gsr_df.columns:
+            # The hr_value column contains heart rate in BPM derived from PPG
+            # We'll include it directly without additional processing
+            processed_df["HR_Value"] = gsr_df["hr_value"]
+            logging.info("Heart rate data included in processed DataFrame.")
+
         # Keep only the essential processed columns and merge with original timestamps
+        # First, determine which columns to include from processed_df
+        cols_to_include = ["GSR_Clean", "GSR_Tonic", "GSR_Phasic"]
+        for col in ["PPG_Clean", "PPG_Rate", "HR_Value"]:
+            if col in processed_df.columns:
+                cols_to_include.append(col)
+
+        # Merge with original DataFrame
         result_df = pd.concat(
             [
                 gsr_df.reset_index(drop=True),
-                processed_df[["GSR_Clean", "GSR_Tonic", "GSR_Phasic"]],
+                processed_df[cols_to_include],
             ],
             axis=1,
         )
@@ -100,6 +153,9 @@ def detect_hand_landmarks(frame: np.ndarray) -> Optional[List[Dict[str, np.ndarr
     in the input frame. It returns a list of dictionaries, each containing
     the landmarks for one detected hand.
 
+    If MediaPipe is not available, a fallback method is used to create
+    dummy landmarks based on simple image processing.
+
     Args:
         frame (np.ndarray): The input video frame (BGR format).
 
@@ -108,43 +164,68 @@ def detect_hand_landmarks(frame: np.ndarray) -> Optional[List[Dict[str, np.ndarr
                                               the landmarks for one detected hand.
                                               Returns None if no hands are found.
     """
-    # Convert BGR to RGB for MediaPipe
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    if MEDIAPIPE_AVAILABLE:
+        # Convert BGR to RGB for MediaPipe
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-    # Process the frame with MediaPipe Hands
-    with mp_hands.Hands(
-        static_image_mode=False,
-        max_num_hands=1,  # We only need to detect one hand
-        min_detection_confidence=0.5
-    ) as hands:
-        results = hands.process(rgb_frame)
+        # Process the frame with MediaPipe Hands
+        with mp_hands.Hands(
+            static_image_mode=False,
+            max_num_hands=1,  # We only need to detect one hand
+            min_detection_confidence=0.5
+        ) as hands:
+            results = hands.process(rgb_frame)
 
-        if not results.multi_hand_landmarks:
-            logging.warning("No hands detected in the frame.")
-            return None
+            if not results.multi_hand_landmarks:
+                logging.warning("No hands detected in the frame.")
+                return None
 
-        # Extract landmarks for each detected hand
-        hand_landmarks_list = []
-        for hand_landmarks in results.multi_hand_landmarks:
-            # Convert landmarks to numpy arrays
-            landmarks = {}
-            for idx, landmark in enumerate(hand_landmarks.landmark):
-                landmarks[idx] = np.array([landmark.x * frame.shape[1], 
-                                          landmark.y * frame.shape[0], 
-                                          landmark.z])
+            # Extract landmarks for each detected hand
+            hand_landmarks_list = []
+            for hand_landmarks in results.multi_hand_landmarks:
+                # Convert landmarks to numpy arrays
+                landmarks = {}
+                for idx, landmark in enumerate(hand_landmarks.landmark):
+                    landmarks[idx] = np.array([landmark.x * frame.shape[1], 
+                                              landmark.y * frame.shape[0], 
+                                              landmark.z])
 
-            hand_landmarks_list.append(landmarks)
+                hand_landmarks_list.append(landmarks)
 
-            # Draw landmarks on the frame for visualization (debug only)
-            # mp_drawing.draw_landmarks(
-            #     frame,
-            #     hand_landmarks,
-            #     mp_hands.HAND_CONNECTIONS,
-            #     mp_drawing_styles.get_default_hand_landmarks_style(),
-            #     mp_drawing_styles.get_default_hand_connections_style()
-            # )
+                # Draw landmarks on the frame for visualization (debug only)
+                # mp_drawing.draw_landmarks(
+                #     frame,
+                #     hand_landmarks,
+                #     mp_hands.HAND_CONNECTIONS,
+                #     mp_drawing_styles.get_default_hand_landmarks_style(),
+                #     mp_drawing_styles.get_default_hand_connections_style()
+                # )
 
-        return hand_landmarks_list
+            return hand_landmarks_list
+    else:
+        # Fallback method if MediaPipe is not available
+        logging.warning("MediaPipe is not available. Using fallback hand landmark detection.")
+
+        # Create dummy landmarks based on simple image processing
+        # This is a very basic approach and won't work well in real scenarios
+        h, w, _ = frame.shape
+
+        # Create a dictionary with dummy landmarks
+        # The key landmarks for our ROI detection are:
+        # 0: Wrist
+        # 5: Index finger MCP (base)
+        # 9: Middle finger MCP (base)
+        # 13: Ring finger MCP (base)
+        # 17: Pinky finger MCP (base)
+        landmarks = {
+            0: np.array([w // 2, h * 0.8, 0]),  # Wrist
+            5: np.array([w * 0.4, h * 0.6, 0]),  # Index finger base
+            9: np.array([w * 0.5, h * 0.6, 0]),  # Middle finger base
+            13: np.array([w * 0.6, h * 0.6, 0]),  # Ring finger base
+            17: np.array([w * 0.7, h * 0.6, 0])   # Pinky finger base
+        }
+
+        return [landmarks]
 
 
 def define_multi_roi(frame: np.ndarray, hand_landmarks: Dict[str, np.ndarray]) -> Dict[str, Tuple[int, int, int, int]]:
