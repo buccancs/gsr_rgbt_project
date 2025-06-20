@@ -1,8 +1,8 @@
-# GSR-RGBT Project Improvement Plan
+# GSR-RGBT Project Future Improvements
 
 ## Introduction
 
-This document outlines a comprehensive improvement plan for the GSR-RGBT (Galvanic Skin Response - RGB-Thermal) project. The plan is based on a thorough analysis of the current implementation, recent improvements, and future considerations identified in the project documentation. The goal is to provide a roadmap for enhancing the project's capabilities, robustness, and usability.
+This document outlines the planned future improvements for the GSR-RGBT (Galvanic Skin Response - RGB-Thermal) project. These improvements are based on a thorough analysis of the current implementation, recent enhancements, and identified opportunities for further development. The goal is to provide a clear roadmap for enhancing the project's capabilities, robustness, and usability.
 
 ## 1. Data Acquisition and Synchronization
 
@@ -11,7 +11,7 @@ This document outlines a comprehensive improvement plan for the GSR-RGBT (Galvan
 **Current State:** The project currently uses a software-based approach for synchronizing data from different sources (RGB video, thermal video, and GSR sensor). While recent improvements have added a centralized timestamp authority, hardware synchronization would provide more precise alignment.
 
 **Proposed Improvements:**
-- Implement the Arduino-based LED flash system for precise synchronization as mentioned in the improvements_summary.md
+- Implement the Arduino-based LED flash system for precise synchronization
 - Create a hardware trigger mechanism that can be detected in all data streams
 - Develop a calibration procedure to measure and account for device-specific latencies
 
@@ -41,7 +41,7 @@ This document outlines a comprehensive improvement plan for the GSR-RGBT (Galvan
 - Implement additional feature extraction methods (e.g., optical flow, texture analysis)
 - Develop a feature selection module to automatically identify the most informative features
 
-**Rationale:** A more modular feature engineering pipeline will make it easier to experiment with different feature extraction methods and adapt to new research questions. This addresses the future consideration mentioned in implementation_notes.md.
+**Rationale:** A more modular feature engineering pipeline will make it easier to experiment with different feature extraction methods and adapt to new research questions. This addresses the future consideration mentioned in implementation notes.
 
 ### 2.2 Improved Thermal Data Utilization
 
@@ -79,7 +79,7 @@ This document outlines a comprehensive improvement plan for the GSR-RGBT (Galvan
 - Create a web-based dashboard for comparing experiments
 - Develop a standardized reporting system for experiment results
 
-**Rationale:** Proper experiment tracking will make it easier to organize, compare, and reproduce experiments. This addresses the future consideration mentioned in implementation_notes.md.
+**Rationale:** Proper experiment tracking will make it easier to organize, compare, and reproduce experiments. This addresses the future consideration mentioned in implementation notes.
 
 ## 4. Testing and Validation
 
@@ -93,7 +93,7 @@ This document outlines a comprehensive improvement plan for the GSR-RGBT (Galvan
 - Develop regression tests to prevent reintroduction of fixed bugs
 - Implement continuous integration to automatically run tests on code changes
 
-**Rationale:** Automated testing will help ensure that the codebase remains robust as it evolves. This addresses the future consideration mentioned in implementation_notes.md.
+**Rationale:** Automated testing will help ensure that the codebase remains robust as it evolves. This addresses the future consideration mentioned in implementation notes.
 
 ### 4.2 Validation Tools for Synchronization
 
@@ -184,6 +184,30 @@ This document outlines a comprehensive improvement plan for the GSR-RGBT (Galvan
 - Create a real-time feedback system based on GSR predictions
 
 **Rationale:** Real-time GSR prediction would enable applications in areas such as affective computing, human-computer interaction, and biofeedback.
+
+## Implementation Timeline
+
+The proposed improvements are organized into short-term (1-3 months), medium-term (3-6 months), and long-term (6-12 months) goals:
+
+### Short-term Goals (1-3 months)
+- Hardware synchronization implementation
+- Enhanced real-time visualization
+- Automated testing framework
+- Validation tools for synchronization
+
+### Medium-term Goals (3-6 months)
+- Further modularization of feature engineering
+- Improved thermal data utilization
+- Experiment tracking integration
+- Enhanced user interface
+- Comprehensive documentation
+
+### Long-term Goals (6-12 months)
+- Advanced model architectures
+- Containerization and cloud deployment
+- Performance optimization
+- Multi-subject analysis
+- Real-time GSR prediction
 
 ## Conclusion
 

@@ -1,30 +1,24 @@
-# Equipment Setup Guide for GSR-RGBT Data Acquisition
-
-## Table of Contents
-1. [Introduction](#introduction)
-2. [Hardware Requirements](#hardware-requirements)
-3. [Software Prerequisites](#software-prerequisites)
-4. [Physical Setup and Connections](#physical-setup-and-connections)
-5. [Synchronization Strategy](#synchronization-strategy)
-6. [Data Acquisition Protocol](#data-acquisition-protocol)
-7. [Troubleshooting](#troubleshooting)
-8. [Post-Recording Checks](#post-recording-checks)
-9. [Next Steps](#next-steps)
+# GSR-RGBT Project Technical Details
 
 ## Introduction
 
-This guide provides detailed instructions for setting up a multimodal data acquisition system that combines RGB video, thermal imaging, and physiological sensing for contactless GSR prediction research. The setup is designed to capture synchronized data from multiple sources:
+This document provides a comprehensive technical guide for the GSR-RGBT (Galvanic Skin Response - RGB-Thermal) project, covering hardware setup, device integration, data synchronization, and system validation. It consolidates information from various technical documents to provide a single reference point for understanding the technical aspects of the project.
 
-- RGB video of the participant's hand
-- Thermal video of the same hand
-- Ground-truth GSR measurements from the opposite hand
-- Optional synchronization signals via Arduino
+## Table of Contents
 
-The system is designed for high-precision temporal alignment between all data streams, which is crucial for training machine learning models to predict GSR from video data.
+1. [Hardware Requirements](#hardware-requirements)
+2. [Physical Setup and Connections](#physical-setup-and-connections)
+3. [Device Integration](#device-integration)
+4. [Data Synchronization](#data-synchronization)
+5. [Data Acquisition Protocol](#data-acquisition-protocol)
+6. [Troubleshooting](#troubleshooting)
+7. [System Validation](#system-validation)
+8. [References](#references)
 
 ## Hardware Requirements
 
 ### Cameras
+
 1. **RGB Camera**:
    - Recommended: High-quality USB webcam (e.g., Logitech C920 or better) or machine vision camera
    - Minimum resolution: 1280×720 at 30fps
@@ -40,6 +34,7 @@ The system is designed for high-precision temporal alignment between all data st
    - Connection: Dedicated Ethernet port on the data acquisition PC
 
 ### Physiological Sensors
+
 1. **Shimmer3 GSR+ Sensor**:
    - Components:
      - Shimmer3 GSR+ unit
@@ -53,6 +48,7 @@ The system is designed for high-precision temporal alignment between all data st
    - Connection: As specified by manufacturer
 
 ### Synchronization Hardware
+
 1. **Arduino Board** (for hardware synchronization):
    - Recommended: Arduino Uno or Nano
    - Components:
@@ -62,6 +58,7 @@ The system is designed for high-precision temporal alignment between all data st
    - Connection: USB port on the data acquisition PC
 
 ### Computer and Accessories
+
 1. **Data Acquisition PC**:
    - Recommended specs:
      - CPU: Intel i7/i9 or AMD Ryzen 7/9
@@ -80,63 +77,6 @@ The system is designed for high-precision temporal alignment between all data st
    - Table and comfortable chair for participant
    - Adjustable lighting (diffuse, non-flickering)
    - Hand rest or support for stable positioning
-
-## Software Prerequisites
-
-### 1. Operating System
-- Windows 10/11 is recommended for maximum compatibility with camera drivers and SDKs
-
-### 2. Python Environment
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your-organization/gsr-rgbt-project.git
-   cd gsr-rgbt-project
-   ```
-
-2. Set up the Python environment:
-   ```bash
-   # Create and activate virtual environment
-   python -m venv .venv
-   .venv\Scripts\activate
-
-   # Install dependencies
-   pip install -r requirements.txt
-
-   # Build Cython extensions
-   python setup.py build_ext --inplace
-   ```
-
-### 3. Camera Software
-1. **FLIR Camera Software**:
-   - Download and install FLIR Spinnaker SDK from the [FLIR website](https://www.flir.com/products/spinnaker-sdk/)
-   - During installation, select:
-     - GigE Vision filter driver
-     - USB3 Vision driver (if applicable)
-     - SpinView (for camera testing and configuration)
-     - Python bindings (PySpin)
-
-2. **RGB Camera Drivers**:
-   - Most USB webcams use standard UVC drivers included with Windows
-   - For specialized cameras, install manufacturer-provided drivers
-
-### 4. Shimmer Software
-1. **Shimmer Connect/ConsensysPRO**:
-   - Download from [Shimmer website](https://www.shimmersensing.com/products/consensys)
-   - Install and use for:
-     - Firmware updates
-     - Initial sensor configuration
-     - Testing sensor functionality
-
-2. **pyshimmer Library**:
-   - Already included in requirements.txt
-   - Verify installation with:
-     ```python
-     python -c "import pyshimmer; print(pyshimmer.__version__)"
-     ```
-
-### 5. Arduino IDE (for synchronization)
-1. Download and install from [Arduino website](https://www.arduino.cc/en/software)
-2. Install any required libraries through the Library Manager
 
 ## Physical Setup and Connections
 
@@ -231,7 +171,6 @@ The system is designed for high-precision temporal alignment between all data st
      ```
 
 2. **Arduino Code**:
-   - Upload the following sketch to the Arduino:
    ```cpp
    // Simple Arduino Sketch for Sync LED
    const int ledPin = 13; // LED connected to digital pin 13
@@ -272,27 +211,128 @@ The system is designed for high-precision temporal alignment between all data st
    - Note the COM port assigned by Windows
    - Test the trigger by opening the Arduino Serial Monitor (set to 9600 baud) and sending 'T'
 
-## Synchronization Strategy
+## Device Integration
 
-Proper synchronization between data streams is critical for this research. The system employs multiple synchronization methods:
+### FLIR A65 Integration
 
-### 1. Software Timestamp Synchronization
+1. **Software Installation**:
+   - Install FLIR Atlas SDK for development
+   - Install PySpin library for Python integration
+   - Verify connection using FLIR tools or a simple Python script
 
-1. **Host PC Timestamps**:
-   - All capture threads use `time.perf_counter_ns()` for high-resolution timestamps
-   - The DataLogger logs these timestamps alongside each frame and GSR sample
-   - This provides a common time reference based on the host PC's clock
-
-2. **Configuration in Code**:
-   - Ensure the following code is properly connected in `src/main.py`:
+2. **Python Integration**:
    ```python
-   # Connect signals with timestamps
-   self.rgb_capture.frame_captured.connect(self.data_logger.log_rgb_frame)
-   self.thermal_capture.frame_captured.connect(self.data_logger.log_thermal_frame)
-   self.gsr_capture.gsr_data_point.connect(self.data_logger.log_gsr_data)
+   # Initialize FLIR A65 camera
+   def initialize_thermal_camera():
+       import PySpin
+       system = PySpin.System.GetInstance()
+       cam_list = system.GetCameras()
+       if cam_list.GetSize() == 0:
+           raise Exception("No FLIR cameras detected")
+       camera = cam_list.GetByIndex(0)
+       camera.Init()
+       # Configure camera settings
+       camera.AcquisitionFrameRateEnable.SetValue(True)
+       camera.AcquisitionFrameRate.SetValue(30.0)  # 30 fps
+       return camera, system
    ```
 
-### 2. Hardware Synchronization via Arduino LED
+### Shimmer3 GSR+ Integration
+
+1. **Specifications**:
+   - **GSR Channel**:
+     - Sampling Rate: 128 Hz
+     - Format: 16 bits, signed
+     - Units: kOhms
+   - **PPG Channel** (if used):
+     - Sampling Rate: 128 Hz
+     - Format: 16 bits, signed
+     - Units: mV
+
+2. **Python Integration**:
+   ```python
+   # Initialize Shimmer3 GSR+
+   def initialize_gsr_sensor(com_port):
+       from pyshimmer import Shimmer
+       shimmer = Shimmer(com_port)
+       shimmer.connect()
+       shimmer.set_sampling_rate(128.0)  # 128 Hz
+       shimmer.enable_sensor('GSR')
+       shimmer.start_streaming()
+       return shimmer
+   ```
+
+3. **Data Format**:
+   The Shimmer3 GSR+ unit outputs data in a tab-separated CSV file with the following columns:
+   - Timestamp (yyyy/mm/dd hh:mm:ss.000)
+   - Accelerometer X, Y, Z (m/s^2)
+   - GSR (kOhms)
+   - PPG-to-HR (BPM)
+   - PPG (mV)
+
+4. **Integration Changes**:
+   - Updated `data_loader.py` to handle the Shimmer data format
+   - Enhanced `preprocessing.py` to process both GSR and PPG signals
+   - Updated `config.py` to set the GSR sampling rate to 128 Hz
+
+### RGB Camera Integration
+
+1. **Python Integration**:
+   ```python
+   # Initialize Logitech Kyro webcam
+   def initialize_webcam(device_id=0):
+       import cv2
+       cap = cv2.VideoCapture(device_id)
+       cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+       cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+       cap.set(cv2.CAP_PROP_FPS, 30)  # 30 fps
+       if not cap.isOpened():
+           raise Exception(f"Could not open webcam (device {device_id})")
+       return cap
+   ```
+
+## Data Synchronization
+
+### Synchronization Challenges
+
+Each device in our setup has different characteristics that make synchronization challenging:
+
+| Device | Sampling Rate | Clock Source | Timestamp Precision | Typical Latency |
+|--------|---------------|--------------|---------------------|-----------------|
+| FLIR A65 | 30 Hz | Internal | Millisecond | 10-50 ms |
+| Shimmer3 GSR+ | 128 Hz | Internal | Microsecond | 5-20 ms |
+| Logitech Kyro | 30 Hz | Internal | Millisecond | 30-100 ms |
+
+Additional challenges include:
+- **Clock Drift**: Device internal clocks may drift relative to each other over time
+- **Variable Latency**: Network and processing delays can vary
+- **Different Sampling Rates**: Devices sample at different frequencies
+- **Jitter**: Inconsistent intervals between samples
+
+### Synchronization Approach
+
+The GSR-RGBT project uses a custom synchronization approach based on a centralized timestamp authority. This approach ensures that all data streams (RGB video, thermal video, and GSR data) are properly synchronized, which is critical for accurate analysis.
+
+#### Components
+
+1. **TimestampThread**: A high-priority thread that emits timestamps at a fast, consistent rate (200Hz by default). This thread serves as a centralized timestamp authority for all data capture components.
+
+2. **Capture Threads**: Separate threads for RGB video, thermal video, and GSR data capture. Each thread captures data at its own rate and associates each data point with the latest timestamp from the TimestampThread.
+
+3. **DataLogger**: Writes the captured data to disk, along with the associated timestamps. This allows for precise synchronization during later analysis.
+
+#### How It Works
+
+1. The TimestampThread generates high-resolution timestamps at 200Hz (much faster than any capture rate).
+2. When a frame or data point is captured, it's associated with the latest timestamp from the TimestampThread.
+3. The DataLogger writes the frames/data points to files along with their timestamps.
+4. During analysis, the timestamps can be used to align the different data streams.
+
+This approach ensures that all data streams share a common time reference, even if they are captured at different rates or with different latencies.
+
+### Hardware Synchronization Methods
+
+For the most precise synchronization, hardware-based methods can be used:
 
 1. **LED Flash Method**:
    - At the start of recording, trigger the Arduino LED with a 'T' command
@@ -309,29 +349,71 @@ Proper synchronization between data streams is critical for this research. The s
    - For longer recordings, trigger the LED periodically (e.g., every 5 minutes)
    - This helps detect and correct for any clock drift
 
-### 3. Post-Processing Alignment
+### Post-Processing Alignment
 
-1. **Timestamp File Usage**:
-   - The system logs timestamps to CSV files:
-     - `rgb_timestamps.csv`
-     - `thermal_timestamps.csv`
-     - `gsr_data.csv` (includes both system and Shimmer timestamps)
+After data collection, post-processing can be used to further refine the synchronization:
 
-   - These files are used by `src/processing/feature_engineering.py` to align signals:
+1. **Cross-Correlation Method**:
    ```python
-   # In create_dataset_from_session function
-   if rgb_timestamps_path.exists():
-       rgb_timestamps_df = pd.read_csv(rgb_timestamps_path)
+   import numpy as np
+   from scipy import signal
+
+   def synchronize_signals(signal1, signal2, sampling_rate1, sampling_rate2):
+       """
+       Find the time offset between two signals using cross-correlation.
+       
+       Args:
+           signal1: First signal array
+           signal2: Second signal array
+           sampling_rate1: Sampling rate of first signal (Hz)
+           sampling_rate2: Sampling rate of second signal (Hz)
+           
+       Returns:
+           time_offset: Time offset in seconds (positive if signal2 is delayed)
+       """
+       # Resample signals to the same rate if necessary
+       if sampling_rate1 != sampling_rate2:
+           # Resample signal2 to match signal1's rate
+           new_length = int(len(signal2) * sampling_rate1 / sampling_rate2)
+           signal2 = signal.resample(signal2, new_length)
+       
+       # Compute cross-correlation
+       correlation = signal.correlate(signal1, signal2, mode='full')
+       
+       # Find the lag with maximum correlation
+       lags = signal.correlation_lags(len(signal1), len(signal2), mode='full')
+       lag = lags[np.argmax(correlation)]
+       
+       # Convert lag to time offset
+       time_offset = lag / sampling_rate1
+       
+       return time_offset
    ```
 
-2. **Visual Verification**:
-   - After recording, visually verify synchronization by:
-     - Checking the LED flash appears in the same frame number in both videos
-     - Confirming that hand movements align between RGB and thermal videos
+2. **Event-Based Synchronization**:
+   - Identify distinct events (e.g., LED flashes, hand movements) in all data streams
+   - Use these events as synchronization points
+   - Align the data streams based on these events
+
+### Testing Synchronization
+
+The project includes a test script that verifies the data synchronization mechanism is working properly:
+
+```bash
+python src/scripts/test_synchronization.py
+```
+
+This script:
+1. First runs the system validation check to ensure all devices are working properly.
+2. Initializes the TimestampThread, capture threads, and DataLogger.
+3. Captures data for a short duration (5 seconds by default).
+4. Analyzes the collected data to verify synchronization.
+5. Creates a visualization plot of the timestamps.
+6. Reports success/failure with detailed information.
 
 ## Data Acquisition Protocol
 
-### 1. Pre-Session Setup
+### Pre-Session Setup
 
 1. **Environment Preparation**:
    - Control room temperature (20-24°C)
@@ -377,7 +459,7 @@ Proper synchronization between data streams is critical for this research. The s
    GSR_SIMULATION_MODE = False
    ```
 
-### 2. Participant Preparation
+### Participant Preparation
 
 1. **Consent and Instructions**:
    - Explain the procedure to the participant
@@ -395,7 +477,7 @@ Proper synchronization between data streams is critical for this research. The s
    - Ensure both cameras have a clear view of the hand
    - Position the hand so the palm is facing up and fully visible
 
-### 3. Recording Session
+### Recording Session
 
 1. **Launch the Application**:
    ```bash
@@ -507,11 +589,32 @@ Proper synchronization between data streams is critical for this research. The s
    - Verify write permissions to the data directory
    - Solution: Free up disk space or run as administrator
 
-## Post-Recording Checks
+## System Validation
+
+### Running System Validation
+
+To verify that all components of the system are working correctly, run the system validation script:
+
+```bash
+python src/scripts/check_system.py
+```
+
+Alternatively, if you have Make installed, you can use:
+
+```bash
+make test
+```
+
+This script checks:
+1. Python environment and required packages
+2. Camera connections
+3. GSR sensor connection
+4. File system access
+5. GPU availability (if applicable)
+
+### Post-Recording Checks
 
 After each recording session, perform these checks to ensure data quality:
-
-### 1. Data File Verification
 
 1. **Check Session Directory**:
    - Navigate to `data/recordings/Subject_[ID]_[TIMESTAMP]/`
@@ -525,70 +628,31 @@ After each recording session, perform these checks to ensure data quality:
 2. **File Size Check**:
    - Video files should be several MB or larger
    - CSV files should contain multiple rows
-   - Example check:
-   ```bash
-   dir data\recordings\Subject_*\*.*
-   ```
 
-### 2. Data Quality Assessment
-
-1. **Video Playback**:
+3. **Data Quality Assessment**:
    - Play both video files to ensure they captured correctly
    - Check for dropped frames or corruption
    - Verify the synchronization LED is visible
-
-2. **GSR Data Inspection**:
    - Open `gsr_data.csv` in a spreadsheet program
    - Check for continuous data without large gaps
    - Verify that values are within expected ranges (typically 0.1-20 μS)
 
-3. **Timestamp Verification**:
+4. **Timestamp Verification**:
    - Check that timestamp files contain entries for each frame
    - Verify the timestamps are monotonically increasing
-   - Example Python check:
-   ```python
-   import pandas as pd
-   df = pd.read_csv("data/recordings/Subject_ID_TIMESTAMP/rgb_timestamps.csv")
-   print(f"Number of frames: {len(df)}")
-   print(f"Time span: {(df['timestamp'].max() - df['timestamp'].min()) / 1e9} seconds")
-   ```
 
-### 3. Quick Visualization
-
-Run a basic visualization to confirm data quality:
-
-```bash
-python src/scripts/visualize_results.py --visualize-multi-roi --subject-id [SUBJECT_ID]
-```
-
-This will generate visualizations of the Multi-ROI detection on sample frames and basic plots of the GSR data.
-
-## Next Steps
-
-After successfully setting up the equipment and collecting data:
-
-1. **Data Processing**:
-   - Process the raw data using the feature engineering pipeline
-   - Extract features from the RGB and thermal videos
-   - Align with GSR ground truth
-
-2. **Model Training**:
-   - Train machine learning models on the processed data
-   - Use the provided scripts for model training and evaluation:
+5. **Quick Visualization**:
    ```bash
-   python src/scripts/train_model.py --model-type dual_stream_cnn_lstm --config-path configs/models/dual_stream_cnn_lstm.yaml
+   python src/scripts/visualize_results.py --visualize-multi-roi --subject-id [SUBJECT_ID]
    ```
+   This will generate visualizations of the Multi-ROI detection on sample frames and basic plots of the GSR data.
 
-3. **Evaluation and Visualization**:
-   - Evaluate model performance
-   - Generate visualizations and reports:
-   ```bash
-   python src/scripts/visualize_results.py --plot-predictions --model-comparison
-   ```
+## References
 
-4. **Iterative Improvement**:
-   - Refine the experimental protocol based on initial results
-   - Optimize camera positions and settings
-   - Improve synchronization methods if needed
-
-For more detailed information on the machine learning pipeline, refer to the project README.md and documentation.
+1. FLIR A65 User Manual: [FLIR Systems Documentation](https://www.flir.com/products/a65/)
+2. Shimmer3 GSR+ User Guide: [Shimmer Documentation](https://shimmersensing.com/product/shimmer3-gsr-unit/)
+3. Logitech Kyro Documentation: [Logitech Support](https://www.logitech.com/en-us/products/webcams/)
+4. PySpin Documentation: [FLIR Systems SDK](https://www.flir.com/products/spinnaker-sdk/)
+5. PyShimmer GitHub Repository: [PyShimmer](https://github.com/ShimmerResearch/pyshimmer)
+6. Mills, D. L. (2006). Network Time Protocol Version 4 Reference and Implementation Guide. University of Delaware.
+7. Olson, E. (2011). AprilTag: A robust and flexible visual fiducial system. In 2011 IEEE International Conference on Robotics and Automation (pp. 3400-3407).
