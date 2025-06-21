@@ -337,6 +337,32 @@ The script generates and saves various plots:
 
 All output plots are saved to `data/recordings/evaluation_plots/` by default, or to the specified output directory.
 
+## Development Tools
+
+### Pre-commit Hooks
+
+The project uses pre-commit hooks to ensure code quality and consistency. These hooks run automatically before each commit, checking for issues and fixing them when possible.
+
+To set up pre-commit hooks:
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Set up the hooks
+python setup_hooks.py
+```
+
+The pre-commit hooks include:
+- Code formatting (black, isort)
+- Linting (flake8)
+- Static type checking (mypy)
+- Security checks (bandit)
+- Check for large files or secrets
+- Basic test execution
+
+For more information about the pre-commit hooks, see [docs/pre_commit_hooks.md](docs/pre_commit_hooks.md).
+
 ## Model Configuration System
 
 The project includes a flexible configuration system for machine learning models, allowing you to easily experiment with different architectures and hyperparameters.

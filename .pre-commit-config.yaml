@@ -1,0 +1,124 @@
+# GSR-RGBT Project Pre-commit Configuration
+# This file configures pre-commit hooks that run automatically before each commit
+# to ensure code quality and catch issues early.
+
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+    -   id: trailing-whitespace
+        name: Trim trailing whitespace
+        description: This hook trims trailing whitespace.
+        exclude: \.md$
+    -   id: end-of-file-fixer
+        name: Fix end of files
+        description: This hook ensures that a file is either empty, or ends with one newline.
+    -   id: check-yaml
+        name: Check YAML syntax
+        description: This hook checks yaml files for parseable syntax.
+    -   id: check-json
+        name: Check JSON syntax
+        description: This hook checks json files for parseable syntax.
+    -   id: check-toml
+        name: Check TOML syntax
+        description: This hook checks toml files for parseable syntax.
+    -   id: check-added-large-files
+        name: Check for added large files
+        description: This hook prevents giant files from being committed.
+        args: ['--maxkb=500']
+    -   id: check-merge-conflict
+        name: Check for merge conflicts
+        description: This hook checks for files that contain merge conflict strings.
+    -   id: detect-private-key
+        name: Detect private keys
+        description: This hook detects private keys.
+    -   id: debug-statements
+        name: Debug statements
+        description: This hook checks for debugger imports and py37+ breakpoint() calls in python source.
+
+-   repo: https://github.com/psf/black
+    rev: 24.3.0
+    hooks:
+    -   id: black
+        name: Format code with Black
+        description: This hook formats Python code with Black.
+        args: ['--line-length=127']
+
+-   repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+    -   id: isort
+        name: Sort imports with isort
+        description: This hook sorts imports in Python files.
+        args: ['--profile=black', '--line-length=127']
+
+-   repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+    -   id: flake8
+        name: Check code style with flake8
+        description: This hook checks Python code style with flake8.
+        additional_dependencies: [
+            'flake8-docstrings',
+            'flake8-bugbear',
+            'flake8-comprehensions',
+        ]
+        args: [
+            '--max-line-length=127',
+            '--max-complexity=10',
+            '--exclude=__init__.py',
+            '--ignore=E203,W503,D100,D101,D102,D103,D104,D105,D107',
+        ]
+
+-   repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.9.0
+    hooks:
+    -   id: mypy
+        name: Check types with mypy
+        description: This hook checks Python types with mypy.
+        additional_dependencies: [
+            'types-requests',
+            'types-PyYAML',
+        ]
+        args: [
+            '--ignore-missing-imports',
+            '--disallow-untyped-defs',
+            '--disallow-incomplete-defs',
+            '--check-untyped-defs',
+            '--disallow-untyped-decorators',
+            '--no-implicit-optional',
+            '--warn-redundant-casts',
+            '--warn-return-any',
+            '--warn-unused-ignores',
+            '--disallow-any-generics',
+            '--disallow-subclassing-any',
+            '--disallow-untyped-calls',
+        ]
+        exclude: '^(third_party/|docs/|data/)'
+
+-   repo: https://github.com/PyCQA/bandit
+    rev: 1.7.8
+    hooks:
+    -   id: bandit
+        name: Check security issues with bandit
+        description: This hook finds common security issues in Python code.
+        args: ['-c', 'pyproject.toml']
+        exclude: '^(third_party/|docs/|data/|tests/)'
+
+-   repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+    -   id: prettier
+        name: Format files with prettier
+        description: This hook formats files with prettier.
+        types_or: [yaml, json, markdown, css, scss, javascript, jsx, typescript, tsx]
+
+-   repo: local
+    hooks:
+    -   id: pytest-check
+        name: Run pytest
+        description: This hook runs pytest to check for test failures.
+        entry: python -m pytest src/tests/unit -xvs
+        language: system
+        pass_filenames: false
+        always_run: true
