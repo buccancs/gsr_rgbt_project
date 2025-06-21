@@ -10,21 +10,21 @@ import numpy as np
 import pandas as pd
 
 # --- Import from our project ---
-from src.processing.data_loader import SessionDataLoader
-from src.processing.preprocessing import (
+from src.ml_pipeline.preprocessing.data_loader import SessionDataLoader
+from src.ml_pipeline.preprocessing.preprocessing import (
     process_gsr_signal,
     process_frame_with_multi_roi,
 )
 
-# Try to import Cython optimizations
+# Try to import Numba optimizations
 try:
-    from src.processing.cython_optimizations import cy_create_feature_windows, cy_align_signals
+    from src.ml_pipeline.preprocessing.numba_optimizations import nb_create_feature_windows, nb_align_signals
 
-    CYTHON_AVAILABLE = True
-    logging.info("Cython optimizations are available and will be used.")
+    NUMBA_AVAILABLE = True
+    logging.info("Numba optimizations are available and will be used.")
 except ImportError:
-    CYTHON_AVAILABLE = False
-    logging.warning("Cython optimizations are not available. Using pure Python implementations.")
+    NUMBA_AVAILABLE = False
+    logging.warning("Numba optimizations are not available. Using pure Python implementations.")
 
 # --- Setup logging for this module ---
 logging.basicConfig(
@@ -68,8 +68,8 @@ def align_signals(gsr_df: pd.DataFrame, video_signals: pd.DataFrame) -> pd.DataF
         (2, 3)
     """
     try:
-        if CYTHON_AVAILABLE:
-            # Use the Cython implementation for better performance
+        if NUMBA_AVAILABLE:
+            # Use the Numba implementation for better performance
             # Convert timestamps to nanoseconds for numerical operations
             gsr_timestamps = pd.to_datetime(gsr_df["timestamp"]).astype(np.int64).values
             video_timestamps = pd.to_datetime(video_signals["timestamp"]).astype(np.int64).values
@@ -78,8 +78,8 @@ def align_signals(gsr_df: pd.DataFrame, video_signals: pd.DataFrame) -> pd.DataF
             gsr_data = gsr_df.drop(columns=["timestamp"]).values
             video_data = video_signals.drop(columns=["timestamp"]).values
 
-            # Call the Cython function
-            aligned_data = cy_align_signals(gsr_data, video_data, gsr_timestamps, video_timestamps)
+            # Call the Numba function
+            aligned_data = nb_align_signals(gsr_data, video_data, gsr_timestamps, video_timestamps)
 
             # Create a new DataFrame with the aligned data
             # First, create column names for the result
@@ -92,7 +92,7 @@ def align_signals(gsr_df: pd.DataFrame, video_signals: pd.DataFrame) -> pd.DataF
             aligned_df.insert(0, "timestamp", pd.to_datetime(gsr_timestamps))
 
             logging.info(
-                f"Successfully aligned GSR and video signals using Cython. Resulting shape: {aligned_df.shape}"
+                f"Successfully aligned GSR and video signals using Numba. Resulting shape: {aligned_df.shape}"
             )
             return aligned_df
         else:
@@ -173,19 +173,19 @@ def create_feature_windows(
         >>> print(X.shape)  # (18, 10, 2)
         >>> print(y.shape)  # (18,)
     """
-    if CYTHON_AVAILABLE:
-        # Use the Cython implementation for better performance
+    if NUMBA_AVAILABLE:
+        # Use the Numba implementation for better performance
         # Extract features and target as numpy arrays
         features = df[feature_cols].values
         targets = df[target_col].values
 
-        # Get column indices for the Cython function
+        # Get column indices for the Numba function
         feature_cols_idx = list(range(len(feature_cols)))
 
-        # Call the Cython function
-        X, y = cy_create_feature_windows(features, targets, feature_cols_idx, window_size, step)
+        # Call the Numba function
+        X, y = nb_create_feature_windows(features, targets, feature_cols_idx, window_size, step)
 
-        logging.info(f"Created feature windows using Cython. X shape: {X.shape}, y shape: {y.shape}")
+        logging.info(f"Created feature windows using Numba. X shape: {X.shape}, y shape: {y.shape}")
         return X, y
     else:
         # Use the original Python implementation

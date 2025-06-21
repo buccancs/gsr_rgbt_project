@@ -21,7 +21,7 @@ project_root = Path(__file__).resolve().parents[2]
 sys.path.append(str(project_root))
 
 from src import config
-from src.processing.feature_engineering import create_dataset_from_session
+from src.ml_pipeline.feature_engineering.feature_engineering import create_dataset_from_session
 from src.ml_models.model_interface import ModelRegistry, BaseModel
 from src.ml_models.model_config import ModelConfig, list_available_configs, create_example_config_files
 

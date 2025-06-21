@@ -3,11 +3,10 @@
 # run_everything.sh - Script to run all components of the GSR-RGBT Project
 # This script runs all the main components of the project in sequence:
 # 1. Setup (if needed)
-# 2. Build Cython extensions
-# 3. System validation checks
-# 4. Synchronization tests
-# 5. Generate mock data (if needed)
-# 6. Run the full ML pipeline
+# 2. System validation checks
+# 3. Synchronization tests
+# 4. Generate mock data (if needed)
+# 5. Run the full ML pipeline
 
 # Text formatting
 BOLD="\033[1m"
@@ -165,26 +164,21 @@ if [ "$ALL_COMPONENTS_INSTALLED" = false ]; then
     echo -e "${YELLOW}Continuing with missing components...${RESET}"
 fi
 
-# Step 2: Build Cython extensions
-echo -e "\n${BOLD}${BLUE}Step 2: Building Cython extensions${RESET}"
-run_make_target "build_cython" "Build Cython extensions" || {
-    echo -e "${YELLOW}!${RESET} Cython build failed, but continuing with other steps..."
-}
 
-# Step 3: System validation checks
-echo -e "\n${BOLD}${BLUE}Step 3: Running system validation checks${RESET}"
+# Step 2: System validation checks
+echo -e "\n${BOLD}${BLUE}Step 2: Running system validation checks${RESET}"
 run_make_target "test" "System validation checks" || {
     echo -e "${YELLOW}!${RESET} System validation checks failed, but continuing with other steps..."
 }
 
-# Step 4: Synchronization tests
-echo -e "\n${BOLD}${BLUE}Step 4: Running synchronization tests${RESET}"
+# Step 3: Synchronization tests
+echo -e "\n${BOLD}${BLUE}Step 3: Running synchronization tests${RESET}"
 run_make_target "test_sync" "Synchronization tests" || {
     echo -e "${YELLOW}!${RESET} Synchronization tests failed, but continuing with other steps..."
 }
 
-# Step 5: Generate mock data (if needed)
-echo -e "\n${BOLD}${BLUE}Step 5: Checking for existing data${RESET}"
+# Step 4: Generate mock data (if needed)
+echo -e "\n${BOLD}${BLUE}Step 4: Checking for existing data${RESET}"
 if [ ! -d "data/recordings" ] || [ -z "$(ls -A data/recordings 2>/dev/null)" ]; then
     echo -e "No data found, generating mock data..."
     run_make_target "mock_data" "Generate mock data" || {
@@ -195,8 +189,8 @@ else
     echo -e "${GREEN}✓${RESET} Data already exists, skipping mock data generation"
 fi
 
-# Step 6: Run the full ML pipeline
-echo -e "\n${BOLD}${BLUE}Step 6: Running the full ML pipeline${RESET}"
+# Step 5: Run the full ML pipeline
+echo -e "\n${BOLD}${BLUE}Step 5: Running the full ML pipeline${RESET}"
 run_make_target "pipeline" "Full ML pipeline" || {
     echo -e "${YELLOW}!${RESET} ML pipeline failed or was incomplete"
 }

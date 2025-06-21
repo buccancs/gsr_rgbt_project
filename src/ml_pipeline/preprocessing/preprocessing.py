@@ -11,16 +11,16 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # --- Import from our project ---
-from src.processing.data_loader import SessionDataLoader
+from src.ml_pipeline.preprocessing.data_loader import SessionDataLoader
 
-# Try to import Cython optimizations
+# Try to import Numba optimizations
 try:
-    from src.processing.cython_optimizations import cy_extract_roi_signal
-    CYTHON_AVAILABLE = True
-    logging.info("Cython optimizations are available and will be used.")
+    from src.ml_pipeline.preprocessing.numba_optimizations import nb_extract_roi_signal
+    NUMBA_AVAILABLE = True
+    logging.info("Numba optimizations are available and will be used.")
 except ImportError:
-    CYTHON_AVAILABLE = False
-    logging.warning("Cython optimizations are not available. Using pure Python implementations.")
+    NUMBA_AVAILABLE = False
+    logging.warning("Numba optimizations are not available. Using pure Python implementations.")
 
 # Try to import MediaPipe
 try:
@@ -348,14 +348,14 @@ def extract_roi_signal(frame: np.ndarray, roi: Tuple[int, int, int, int]) -> np.
     Returns:
         np.ndarray: An array containing the mean value for each channel (e.g., [R, G, B]).
     """
-    if CYTHON_AVAILABLE:
-        # Use the Cython implementation for better performance
+    if NUMBA_AVAILABLE:
+        # Use the Numba implementation for better performance
         # Ensure frame is in the correct format (uint8)
         if frame.dtype != np.uint8:
             frame = frame.astype(np.uint8)
 
-        # Call the Cython function
-        mean_signal = cy_extract_roi_signal(frame, roi)
+        # Call the Numba function
+        mean_signal = nb_extract_roi_signal(frame, roi)
         return mean_signal
     else:
         # Use the original OpenCV implementation

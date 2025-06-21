@@ -48,6 +48,9 @@ class TestModelConfigurations(unittest.TestCase):
         mock_model = MagicMock()
         mock_model_class.return_value = mock_model
 
+        # Mock the predict method to return an array with the right shape
+        mock_model.predict.return_value = np.random.randn(len(self.X_val))
+
         # Create a mock ModelFactory
         mock_factory = MagicMock()
         mock_factory.create_model.return_value = mock_model
@@ -134,6 +137,9 @@ class TestModelConfigurations(unittest.TestCase):
         # Setup mock
         mock_model = MagicMock()
         mock_model_class.return_value = mock_model
+
+        # Mock the predict method to return an array with the right shape
+        mock_model.predict.return_value = np.random.randn(len(self.X_val))
 
         # Create a mock ModelFactory
         mock_factory = MagicMock()
@@ -230,6 +236,9 @@ class TestModelConfigurations(unittest.TestCase):
         # Setup mock
         mock_model = MagicMock()
         mock_model_class.return_value = mock_model
+
+        # Mock the predict method to return an array with the right shape
+        mock_model.predict.return_value = np.random.randn(len(self.y_val))
 
         # Create a mock ModelFactory
         mock_factory = MagicMock()
@@ -334,6 +343,9 @@ class TestModelConfigurations(unittest.TestCase):
         mock_model = MagicMock()
         mock_model_class.return_value = mock_model
 
+        # Mock the predict method to return an array with the right shape
+        mock_model.predict.return_value = np.random.randn(len(self.X_val))
+
         # Create a mock ModelFactory
         mock_factory = MagicMock()
         mock_factory.create_model.return_value = mock_model
@@ -429,6 +441,9 @@ class TestModelConfigurations(unittest.TestCase):
         mock_model = MagicMock()
         mock_model_class.return_value = mock_model
 
+        # Mock the predict method to return an array with the same shape as self.X_val
+        mock_model.predict.return_value = np.random.randn(*self.X_val.shape)
+
         # Create a mock ModelFactory
         mock_factory = MagicMock()
         mock_factory.create_model.return_value = mock_model
@@ -506,6 +521,9 @@ class TestModelConfigurations(unittest.TestCase):
         # Setup mock
         mock_model = MagicMock()
         mock_model_class.return_value = mock_model
+
+        # Mock the predict method to return an array with the same shape as self.X_val
+        mock_model.predict.return_value = np.random.randn(*self.X_val.shape)
 
         # Create a mock ModelFactory
         mock_factory = MagicMock()

@@ -3,7 +3,7 @@ opencv-python
 neurokit2
 pyshimmer
 torch
-cython
+numba
 scikit-learn
 pandas
 pyyaml
@@ -11,9 +11,6 @@ mediapipe
 matplotlib
 PyQt5
 seaborn
-pyserial
-pyspin
-tensorflow
 pyserial
 pyspin
 tensorflow

@@ -11,7 +11,7 @@ import os
 project_root = Path(__file__).resolve().parents[2]
 sys.path.append(str(project_root))
 
-from src.processing.preprocessing import (
+from src.ml_pipeline.preprocessing.preprocessing import (
     detect_hand_landmarks,
     define_multi_roi,
     extract_multi_roi_signals,
@@ -92,7 +92,7 @@ class TestMultiROI(unittest.TestCase):
 
         # Check that the visualization frame has the same shape as the input frame
         self.assertEqual(vis_frame.shape, self.dummy_hand_frame.shape)
-        
+
         # Check that the visualization frame is different from the input frame
         # (i.e., ROIs have been drawn on it)
         self.assertFalse(np.array_equal(vis_frame, self.dummy_hand_frame))
@@ -113,12 +113,12 @@ class TestMultiROI(unittest.TestCase):
             # If no hand was detected, this is expected for the artificial image
             # We'll test with the dummy ROIs instead
             signals = extract_multi_roi_signals(self.dummy_hand_frame, self.dummy_rois)
-            
+
             # Check that all expected ROIs are present in the signals
             self.assertIn("index_finger_base", signals)
             self.assertIn("ring_finger_base", signals)
             self.assertIn("palm_center", signals)
-            
+
             # Check that signals have the correct format
             for roi_name, signal in signals.items():
                 self.assertEqual(len(signal), 3)  # B, G, R channels

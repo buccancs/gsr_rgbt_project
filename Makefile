@@ -7,7 +7,7 @@
 PYTHON = python
 
 # --- Phony targets do not correspond to actual files ---
-.PHONY: all setup clean test test_sync run_app train inference evaluate pipeline mock_data build_cython
+.PHONY: all setup clean test test_sync run_app train inference evaluate pipeline mock_data
 
 # --- Main Targets ---
 
@@ -18,7 +18,6 @@ all:
 	@echo "Available commands:"
 	@echo "  make setup        - Creates a virtual environment and installs dependencies."
 	@echo "  make clean        - Removes temporary files and build artifacts."
-	@echo "  make build_cython - Builds Cython extensions for performance optimization."
 	@echo "  make test         - Runs system validation checks for cameras and dependencies."
 	@echo "  make test_sync    - Runs data synchronization test for all devices."
 	@echo "  make run_app      - Runs the data collection GUI application."
@@ -37,15 +36,9 @@ setup:
 	@# The following command must be run in a shell that supports this syntax.
 	@. .venv/bin/activate && pip install -r requirements.txt || \
 		echo "Failed to install dependencies. Please activate the venv manually ('source .venv/bin/activate') and run 'pip install -r requirements.txt'"
-	@echo ">>> Building Cython extensions..."
-	@. .venv/bin/activate && $(PYTHON) setup.py build_ext --inplace || \
-		echo "Failed to build Cython extensions. Please activate the venv manually and run 'python setup.py build_ext --inplace'"
+	@echo ">>> Setup complete."
 	@echo "\nSetup complete. To activate the environment, run: source .venv/bin/activate"
 
-# Target to build Cython extensions
-build_cython:
-	@echo ">>> Building Cython extensions..."
-	$(PYTHON) setup.py build_ext --inplace
 
 # Target to clean the project directory
 clean:
@@ -99,5 +92,5 @@ mock_data:
 	@$(PYTHON) src/system/data_generation/create_mock_data.py
 
 # Target to run the full machine learning pipeline sequentially
-pipeline: build_cython train inference evaluate
-	@echo "\n>>> Full ML pipeline (build_cython -> train -> inference -> evaluate) complete."
+pipeline: train inference evaluate
+	@echo "\n>>> Full ML pipeline (train -> inference -> evaluate) complete."
