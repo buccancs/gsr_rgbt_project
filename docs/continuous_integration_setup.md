@@ -8,23 +8,66 @@ This document outlines the continuous integration (CI) setup for the GSR-RGBT pr
 
 The GSR-RGBT project uses GitHub Actions as its CI platform. GitHub Actions is integrated with the project's GitHub repository and provides automated workflows for building, testing, and deploying the project.
 
-## CI Workflow
+## GitHub Actions Workflows
 
-The CI workflow for the GSR-RGBT project consists of the following steps:
+The GSR-RGBT project uses several GitHub Actions workflows to automate different aspects of the development process:
 
-1. **Code Checkout**: The workflow checks out the latest code from the repository.
-2. **Environment Setup**: The workflow sets up the Python environment and installs dependencies.
-3. **Code Linting**: The workflow runs linting tools to check code style and quality.
-4. **Unit Tests**: The workflow runs unit tests to verify the correctness of individual components.
-5. **Smoke Tests**: The workflow runs smoke tests to verify that the main functionality works.
-6. **Regression Tests**: The workflow runs regression tests to ensure that changes don't break existing functionality.
-7. **Coverage Analysis**: The workflow measures test coverage and reports it.
-8. **Documentation Build**: The workflow builds the documentation to ensure it's up-to-date.
-9. **Artifact Publishing**: The workflow publishes build artifacts for further inspection.
+1. **CI Workflow** (ci.yml): The main continuous integration workflow that runs tests and builds documentation.
+2. **Security Scanning** (codeql-analysis.yml): A workflow that performs security analysis using GitHub's CodeQL.
+3. **Automated Releases** (release.yml): A workflow that automates the creation of releases and publishing to PyPI.
+4. **Performance Benchmarking** (benchmark.yml): A workflow that runs performance benchmarks and tracks results over time.
 
-## Workflow Configuration
+### CI Workflow
 
-The CI workflow is configured in the `.github/workflows/ci.yml` file. Here's an example configuration:
+The main CI workflow consists of the following jobs:
+
+1. **Lint**: Checks code style and quality using flake8.
+2. **Test**: Runs unit, smoke, and regression tests on multiple Python versions (3.8, 3.9, 3.10).
+3. **Docs**: Builds the documentation and uploads it as an artifact.
+
+Key features of the CI workflow include:
+
+- **Matrix Testing**: Tests are run on multiple Python versions to ensure compatibility.
+- **Dependency Caching**: Dependencies are cached to speed up builds.
+- **Scheduled Runs**: The workflow runs automatically on a schedule (nightly) to catch issues early.
+- **Manual Triggering**: The workflow can be triggered manually using the workflow_dispatch event.
+- **Coverage Reporting**: Test coverage is measured and reported to Codecov.
+
+### Security Scanning Workflow
+
+The security scanning workflow uses GitHub's CodeQL to identify security vulnerabilities in the codebase. It runs:
+
+- On pushes to the main branch
+- On pull requests to the main branch
+- On a weekly schedule
+- When manually triggered
+
+### Automated Release Workflow
+
+The release workflow automates the process of creating releases and publishing packages to PyPI. It is triggered when a tag starting with 'v' is pushed to the repository (e.g., v1.0.0). The workflow:
+
+1. Builds the Python package
+2. Generates a changelog based on commits
+3. Creates a GitHub release with the changelog
+4. Uploads the package as a release asset
+5. Publishes the package to PyPI
+
+### Performance Benchmarking Workflow
+
+The benchmarking workflow runs performance tests and tracks results over time. It:
+
+1. Runs on pushes to the main branch
+2. Runs on pull requests to the main branch
+3. Runs on a weekly schedule
+4. Can be triggered manually
+
+The workflow uses pytest-benchmark to run benchmarks and the github-action-benchmark action to visualize and track results. It also sets up alerts for performance regressions.
+
+## Workflow Configurations
+
+### CI Workflow Configuration
+
+The main CI workflow is configured in the `.github/workflows/ci.yml` file. Here's an example configuration:
 
 ```yaml
 name: GSR-RGBT CI
@@ -34,51 +77,306 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  schedule:
+    # Run nightly at midnight UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Lint with flake8
+        run: |
+          flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 src --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.8', '3.9', '3.10']
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}-${{ matrix.python-version }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -e .
+
+      - name: Test with pytest
+        run: |
+          pytest src/tests/unit --cov=src
+          pytest src/tests/smoke
+          pytest src/tests/regression
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-${{ matrix.python-version }}
+          fail_ci_if_error: false
+
+  docs:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-docs-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-docs-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install sphinx sphinx_rtd_theme
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -e .
+
+      - name: Build documentation
+        run: |
+          cd docs
+          make html
+
+      - name: Upload documentation
+        uses: actions/upload-artifact@v3
+        with:
+          name: documentation
+          path: docs/_build/html
+```
+
+### Security Scanning Workflow Configuration
+
+The security scanning workflow is configured in the `.github/workflows/codeql-analysis.yml` file:
+
+```yaml
+name: "CodeQL Security Scan"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run once a week on Sunday at midnight UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'python' ]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+```
+
+### Automated Release Workflow Configuration
+
+The release workflow is configured in the `.github/workflows/release.yml` file:
+
+```yaml
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
 jobs:
   build:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine wheel
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -e .
+
+      - name: Build package
+        run: |
+          python -m build
+          twine check dist/*
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        uses: metcalfc/changelog-generator@v4.1.0
+        with:
+          myToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## Changes in this Release
+            ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: false
+
+      - name: Upload to PyPI
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip_existing: true
+```
+
+### Performance Benchmarking Workflow Configuration
+
+The benchmarking workflow is configured in the `.github/workflows/benchmark.yml` file:
+
+```yaml
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run weekly on Monday at midnight UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.8'
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install flake8 pytest pytest-cov
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install -e .
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-benchmark-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-benchmark-
+            ${{ runner.os }}-pip-
 
-    - name: Lint with flake8
-      run: |
-        flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 src --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-benchmark
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install -e .
 
-    - name: Test with pytest
-      run: |
-        pytest src/tests/unit --cov=src
-        pytest src/tests/smoke
-        pytest src/tests/regression
+      - name: Run benchmarks
+        run: |
+          mkdir -p benchmark_results
+          pytest src/tests/benchmarks --benchmark-json benchmark_results/output.json
 
-    - name: Upload coverage report
-      uses: codecov/codecov-action@v1
-
-    - name: Build documentation
-      run: |
-        pip install sphinx sphinx_rtd_theme
-        cd docs
-        make html
-
-    - name: Upload documentation
-      uses: actions/upload-artifact@v2
-      with:
-        name: documentation
-        path: docs/_build/html
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Python Benchmarks
+          tool: 'pytest'
+          output-file-path: benchmark_results/output.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '200%'
+          comment-on-alert: true
+          fail-on-alert: true
+          summary-always: true
 ```
 
 ## CI Status Badges
