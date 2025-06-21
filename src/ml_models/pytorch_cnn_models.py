@@ -9,7 +9,7 @@ following the BaseModel interface defined in model_interface.py.
 
 import logging
 import os
-from typing import Dict, Any, Optional, Tuple, List, Union
+from typing import Dict, Any, Tuple, List
 
 import numpy as np
 import torch
@@ -18,7 +18,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset, random_split
 
 from src.ml_models.model_interface import BaseModel, ModelFactory, ModelRegistry
-from src.ml_models.model_config import ModelConfig
+from src.ml_models.pytorch_models import EarlyStopping
 
 # --- Setup logging ---
 logging.basicConfig(
@@ -35,9 +35,9 @@ class PyTorchCNN(nn.Module):
     1D convolutions to extract features before making predictions.
     """
 
-    def __init__(self, input_channels: int, input_length: int, 
-                 conv_channels: List[int], kernel_sizes: List[int], 
-                 strides: List[int], fc_layers: List[int], 
+    def __init__(self, input_channels: int, input_length: int,
+                 conv_channels: List[int], kernel_sizes: List[int],
+                 strides: List[int], fc_layers: List[int],
                  activations: List[str], pool_sizes: List[int] = None,
                  dropout_rate: float = 0.2):
         """
@@ -72,7 +72,7 @@ class PyTorchCNN(nn.Module):
         current_length = input_length
 
         for i, (out_channels, kernel_size, stride, pool_size) in enumerate(
-            zip(conv_channels, kernel_sizes, strides, pool_sizes)
+                zip(conv_channels, kernel_sizes, strides, pool_sizes)
         ):
             # Add convolutional layer
             self.conv_layers.append(
@@ -170,10 +170,10 @@ class PyTorchCNNLSTM(nn.Module):
     then passes these features to an LSTM to capture temporal dependencies.
     """
 
-    def __init__(self, input_channels: int, input_length: int, 
-                 conv_channels: List[int], kernel_sizes: List[int], 
-                 strides: List[int], lstm_hidden_size: int, 
-                 lstm_num_layers: int, fc_layers: List[int], 
+    def __init__(self, input_channels: int, input_length: int,
+                 conv_channels: List[int], kernel_sizes: List[int],
+                 strides: List[int], lstm_hidden_size: int,
+                 lstm_num_layers: int, fc_layers: List[int],
                  activations: List[str], pool_sizes: List[int] = None,
                  dropout_rate: float = 0.2, bidirectional: bool = False):
         """
@@ -211,7 +211,7 @@ class PyTorchCNNLSTM(nn.Module):
         current_length = input_length
 
         for i, (out_channels, kernel_size, stride, pool_size) in enumerate(
-            zip(conv_channels, kernel_sizes, strides, pool_sizes)
+                zip(conv_channels, kernel_sizes, strides, pool_sizes)
         ):
             # Add convolutional layer
             self.conv_layers.append(
@@ -368,21 +368,21 @@ class PyTorchCNNModel(BaseModel):
 
         if optimizer_type == "adam":
             self.optimizer = optim.Adam(
-                self.model.parameters(), 
-                lr=lr, 
+                self.model.parameters(),
+                lr=lr,
                 weight_decay=weight_decay
             )
         elif optimizer_type == "sgd":
             self.optimizer = optim.SGD(
-                self.model.parameters(), 
-                lr=lr, 
+                self.model.parameters(),
+                lr=lr,
                 weight_decay=weight_decay
             )
         else:
             # Default to Adam
             self.optimizer = optim.Adam(
-                self.model.parameters(), 
-                lr=lr, 
+                self.model.parameters(),
+                lr=lr,
                 weight_decay=weight_decay
             )
 
@@ -491,11 +491,11 @@ class PyTorchCNNModel(BaseModel):
             self.history["val_loss"].append(val_loss)
 
             # Log progress
-            logging.info(f"Epoch {epoch+1}/{epochs} - train_loss: {train_loss:.4f} - val_loss: {val_loss:.4f}")
+            logging.info(f"Epoch {epoch + 1}/{epochs} - train_loss: {train_loss:.4f} - val_loss: {val_loss:.4f}")
 
             # Check early stopping
             if early_stopping({"val_loss": val_loss}, self.model):
-                logging.info(f"Early stopping triggered after {epoch+1} epochs")
+                logging.info(f"Early stopping triggered after {epoch + 1} epochs")
                 break
 
         # Restore best weights
@@ -667,21 +667,21 @@ class PyTorchCNNLSTMModel(BaseModel):
 
         if optimizer_type == "adam":
             self.optimizer = optim.Adam(
-                self.model.parameters(), 
-                lr=lr, 
+                self.model.parameters(),
+                lr=lr,
                 weight_decay=weight_decay
             )
         elif optimizer_type == "sgd":
             self.optimizer = optim.SGD(
-                self.model.parameters(), 
-                lr=lr, 
+                self.model.parameters(),
+                lr=lr,
                 weight_decay=weight_decay
             )
         else:
             # Default to Adam
             self.optimizer = optim.Adam(
-                self.model.parameters(), 
-                lr=lr, 
+                self.model.parameters(),
+                lr=lr,
                 weight_decay=weight_decay
             )
 
@@ -790,11 +790,11 @@ class PyTorchCNNLSTMModel(BaseModel):
             self.history["val_loss"].append(val_loss)
 
             # Log progress
-            logging.info(f"Epoch {epoch+1}/{epochs} - train_loss: {train_loss:.4f} - val_loss: {val_loss:.4f}")
+            logging.info(f"Epoch {epoch + 1}/{epochs} - train_loss: {train_loss:.4f} - val_loss: {val_loss:.4f}")
 
             # Check early stopping
             if early_stopping({"val_loss": val_loss}, self.model):
-                logging.info(f"Early stopping triggered after {epoch+1} epochs")
+                logging.info(f"Early stopping triggered after {epoch + 1} epochs")
                 break
 
         # Restore best weights
@@ -935,7 +935,7 @@ class PyTorchDualStreamCNNLSTM(nn.Module):
     The fused features are then passed to an LSTM to capture temporal dependencies.
     """
 
-    def __init__(self, 
+    def __init__(self,
                  rgb_input_shape: Tuple[int, int, int],  # (channels, height, width)
                  thermal_input_shape: Tuple[int, int, int],  # (channels, height, width)
                  cnn_filters: List[int],  # Number of filters for each CNN layer
@@ -1058,9 +1058,9 @@ class PyTorchDualStreamCNNLSTM(nn.Module):
 
             current_size = units
 
-    def _build_cnn_stream(self, input_channels: int, cnn_filters: List[int], 
-                          cnn_kernel_sizes: List[int], cnn_strides: List[int], 
-                          cnn_pool_sizes: List[int], activations: List[str], 
+    def _build_cnn_stream(self, input_channels: int, cnn_filters: List[int],
+                          cnn_kernel_sizes: List[int], cnn_strides: List[int],
+                          cnn_pool_sizes: List[int], activations: List[str],
                           dropout_rate: float, stream_name: str) -> nn.ModuleList:
         """
         Build a CNN stream for processing video frames.
@@ -1082,7 +1082,7 @@ class PyTorchDualStreamCNNLSTM(nn.Module):
         current_channels = input_channels
 
         for i, (filters, kernel_size, stride, pool_size) in enumerate(
-            zip(cnn_filters, cnn_kernel_sizes, cnn_strides, cnn_pool_sizes)
+                zip(cnn_filters, cnn_kernel_sizes, cnn_strides, cnn_pool_sizes)
         ):
             # Add convolutional layer
             cnn_layers.append(
@@ -1247,16 +1247,16 @@ class PyTorchDualStreamCNNLSTMModel(BaseModel):
 
         if optimizer_type == "adam":
             self.optimizer = optim.Adam(
-                self.model.parameters(), 
-                lr=lr, 
+                self.model.parameters(),
+                lr=lr,
                 weight_decay=weight_decay
             )
         elif optimizer_type == "sgd":
             momentum = optimizer_params.get("momentum", 0.9)
             self.optimizer = optim.SGD(
-                self.model.parameters(), 
-                lr=lr, 
-                momentum=momentum, 
+                self.model.parameters(),
+                lr=lr,
+                momentum=momentum,
                 weight_decay=weight_decay
             )
         else:
@@ -1421,13 +1421,13 @@ class PyTorchDualStreamCNNLSTMModel(BaseModel):
 
             # Print progress
             if verbose and (epoch + 1) % 10 == 0:
-                logging.info(f"Epoch {epoch+1}/{epochs}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+                logging.info(f"Epoch {epoch + 1}/{epochs}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
 
             # Check for early stopping
             if early_stopping:
                 should_stop = early_stopper({"val_loss": val_loss}, self.model)
                 if should_stop:
-                    logging.info(f"Early stopping triggered at epoch {epoch+1}")
+                    logging.info(f"Early stopping triggered at epoch {epoch + 1}")
                     # Restore best weights
                     early_stopper.restore_best_weights(self.model)
                     break

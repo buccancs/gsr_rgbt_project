@@ -1,6 +1,7 @@
 # src/processing/feature_engineering.py
 
 import logging
+import sys
 from pathlib import Path
 from typing import Tuple, List, Optional
 
@@ -12,14 +13,13 @@ import pandas as pd
 from src.processing.data_loader import SessionDataLoader
 from src.processing.preprocessing import (
     process_gsr_signal,
-    detect_palm_roi,
-    extract_roi_signal,
     process_frame_with_multi_roi,
 )
 
 # Try to import Cython optimizations
 try:
     from src.processing.cython_optimizations import cy_create_feature_windows, cy_align_signals
+
     CYTHON_AVAILABLE = True
     logging.info("Cython optimizations are available and will be used.")
 except ImportError:
@@ -123,11 +123,11 @@ def align_signals(gsr_df: pd.DataFrame, video_signals: pd.DataFrame) -> pd.DataF
 
 
 def create_feature_windows(
-    df: pd.DataFrame,
-    feature_cols: List[str],
-    target_col: str,
-    window_size: int,
-    step: int,
+        df: pd.DataFrame,
+        feature_cols: List[str],
+        target_col: str,
+        window_size: int,
+        step: int,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
     Creates overlapping windows from time-series data for sequence modeling.
@@ -193,7 +193,7 @@ def create_feature_windows(
         num_rows = len(df)
 
         for i in range(0, num_rows - window_size, step):
-            window_features = df[feature_cols].iloc[i : i + window_size].values
+            window_features = df[feature_cols].iloc[i: i + window_size].values
             # The target is the value at the end of the window
             target_value = df[target_col].iloc[i + window_size - 1]
 
@@ -210,9 +210,9 @@ def create_feature_windows(
 # --- Example Pipeline ---
 # This demonstrates how the functions would be used to create a final dataset from a session.
 def create_dataset_from_session(
-    session_path: Path, gsr_sampling_rate: int, video_fps: int,
-    feature_columns: List[str] = None, target_column: str = "GSR_Phasic",
-    use_thermal: bool = False
+        session_path: Path, gsr_sampling_rate: int, video_fps: int,
+        feature_columns: List[str] = None, target_column: str = "GSR_Phasic",
+        use_thermal: bool = False
 ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
     """
     Full pipeline to load, preprocess, align, and window data from a single session.
@@ -472,7 +472,8 @@ def create_dataset_from_session(
             X_rgb = X[:, :, rgb_indices]  # All windows, all timesteps, RGB features
             X_thermal = X[:, :, thermal_indices]  # All windows, all timesteps, thermal features
 
-            logging.info(f"Dual-stream model detected. Reshaping features: X_rgb shape: {X_rgb.shape}, X_thermal shape: {X_thermal.shape}")
+            logging.info(
+                f"Dual-stream model detected. Reshaping features: X_rgb shape: {X_rgb.shape}, X_thermal shape: {X_thermal.shape}")
             return (X_rgb, X_thermal), y
 
     return X, y

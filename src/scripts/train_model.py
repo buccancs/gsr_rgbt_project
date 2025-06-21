@@ -1,22 +1,19 @@
 # src/scripts/train_model.py
 
-import logging
 import argparse
-import json
 import datetime
+import json
+import logging
 import subprocess
-from typing import Dict, Any, Optional, Tuple, List
-
 # --- Import project modules ---
 # Add the project root to the Python path to allow for absolute imports
 import sys
-import os
-import yaml
 from pathlib import Path
+from typing import Dict, Any, Optional, Tuple
 
+import joblib
 import numpy as np
 import pandas as pd
-import joblib
 from sklearn.model_selection import LeaveOneGroupOut, train_test_split
 from sklearn.preprocessing import StandardScaler
 
@@ -25,16 +22,16 @@ sys.path.append(str(project_root))
 
 from src import config
 from src.processing.feature_engineering import create_dataset_from_session
-from src.ml_models.model_interface import ModelRegistry
+from src.ml_models.model_interface import ModelRegistry, BaseModel
 from src.ml_models.model_config import ModelConfig, list_available_configs, create_example_config_files
 
 # Import PyTorch models (this will register them with the ModelRegistry)
-import src.ml_models.pytorch_models
 
 # For backward compatibility with TensorFlow models
 try:
     import tensorflow as tf
     from src.ml_models.models import build_lstm_model, build_ae_model, build_vae_model
+
     TENSORFLOW_AVAILABLE = True
 except ImportError:
     TENSORFLOW_AVAILABLE = False
@@ -48,7 +45,7 @@ logging.basicConfig(
 
 
 def load_all_session_data(
-    data_dir: Path, gsr_sampling_rate: int, video_fps: int
+        data_dir: Path, gsr_sampling_rate: int, video_fps: int
 ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
     """
     Loads and processes data from all session directories for model training.
@@ -130,29 +127,29 @@ def parse_arguments() -> argparse.Namespace:
 
     # Model selection and configuration
     parser.add_argument(
-        "--model-type", 
-        type=str, 
+        "--model-type",
+        type=str,
         default="lstm",
         choices=list_available_configs(),
         help=f"Type of model to train. Available options: {', '.join(list_available_configs())}"
     )
 
     parser.add_argument(
-        "--config-path", 
-        type=str, 
+        "--config-path",
+        type=str,
         help="Path to a YAML configuration file for the model"
     )
 
     parser.add_argument(
-        "--create-example-configs", 
+        "--create-example-configs",
         action="store_true",
         help="Create example configuration files for all model types and exit"
     )
 
     # Output directory for models and results
     parser.add_argument(
-        "--output-dir", 
-        type=str, 
+        "--output-dir",
+        type=str,
         default=None,
         help="Directory to save models and results (defaults to config.OUTPUT_DIR)"
     )
@@ -173,23 +170,23 @@ def parse_arguments() -> argparse.Namespace:
 
     # Cross-validation options
     parser.add_argument(
-        "--cv-folds", 
-        type=int, 
+        "--cv-folds",
+        type=int,
         default=0,
         help="Number of cross-validation folds (0 for LOSO cross-validation)"
     )
 
     # Validation split options
     parser.add_argument(
-        "--validation-split", 
-        type=float, 
+        "--validation-split",
+        type=float,
         default=0.2,
         help="Fraction of training data to use for validation (default: 0.2)"
     )
 
     # Save metadata options
     parser.add_argument(
-        "--save-metadata", 
+        "--save-metadata",
         action="store_true",
         default=True,
         help="Save metadata about the training process"
@@ -199,9 +196,9 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def build_model_from_config(
-    input_shape: Tuple[int, int], 
-    model_type: str, 
-    config_path: Optional[str] = None
+        input_shape: Tuple[int, int],
+        model_type: str,
+        config_path: Optional[str] = None
 ) -> 'BaseModel':
     """
     Build a model based on the specified type and configuration.
@@ -260,7 +257,8 @@ def build_model_from_config(
             logging.error(f"Error creating PyTorch model: {e}")
             # Raise the error instead of falling back to TensorFlow
             # This makes it clearer what went wrong and prevents masking of issues
-            raise ValueError(f"Failed to create PyTorch model '{model_type}'. Please check your model configuration. Error: {e}")
+            raise ValueError(
+                f"Failed to create PyTorch model '{model_type}'. Please check your model configuration. Error: {e}")
 
     # For TensorFlow models (or fallback)
     if framework == "tensorflow":
@@ -296,14 +294,14 @@ def get_git_commit_hash() -> str:
 
 
 def create_training_metadata(
-    model_type: str,
-    model_config: ModelConfig,
-    fold: int,
-    subject_id: str,
-    input_shape: Tuple[int, int],
-    preprocessing_params: Dict[str, Any],
-    training_params: Dict[str, Any],
-    metrics: Dict[str, float]
+        model_type: str,
+        model_config: ModelConfig,
+        fold: int,
+        subject_id: str,
+        input_shape: Tuple[int, int],
+        preprocessing_params: Dict[str, Any],
+        training_params: Dict[str, Any],
+        metrics: Dict[str, float]
 ) -> Dict[str, Any]:
     """
     Create metadata about the training process for documentation and reproducibility.
@@ -355,11 +353,11 @@ def create_training_metadata(
 
 
 def save_training_metadata(
-    metadata: Dict[str, Any],
-    output_dir: Path,
-    model_type: str,
-    fold: int,
-    subject_id: str
+        metadata: Dict[str, Any],
+        output_dir: Path,
+        model_type: str,
+        fold: int,
+        subject_id: str
 ) -> Path:
     """
     Save metadata about the training process.
@@ -379,7 +377,7 @@ def save_training_metadata(
     metadata_dir.mkdir(exist_ok=True, parents=True)
 
     # Create metadata file path
-    metadata_path = metadata_dir / f"{model_type}_fold_{fold+1}_subject_{subject_id}_metadata.json"
+    metadata_path = metadata_dir / f"{model_type}_fold_{fold + 1}_subject_{subject_id}_metadata.json"
 
     # Save metadata to file
     with open(metadata_path, "w") as f:
@@ -416,7 +414,7 @@ def setup_callbacks(model_config, fold, subject_id, output_dir):
 
     # Model checkpoint callback
     if "model_checkpoint" in callback_configs:
-        model_save_path = output_dir / f"models/{model_config.get_model_name()}_fold_{fold+1}_subject_{subject_id}.keras"
+        model_save_path = output_dir / f"models/{model_config.get_model_name()}_fold_{fold + 1}_subject_{subject_id}.keras"
         model_save_path.parent.mkdir(exist_ok=True, parents=True)
 
         checkpoint_config = callback_configs["model_checkpoint"]
@@ -441,7 +439,7 @@ def setup_callbacks(model_config, fold, subject_id, output_dir):
 
     # TensorBoard callback
     if "tensorboard" in callback_configs:
-        log_dir = output_dir / f"logs/{model_config.get_model_name()}/fold_{fold+1}"
+        log_dir = output_dir / f"logs/{model_config.get_model_name()}/fold_{fold + 1}"
         log_dir.mkdir(exist_ok=True, parents=True)
         callbacks.append(
             tf.keras.callbacks.TensorBoard(log_dir=str(log_dir))
@@ -483,7 +481,8 @@ def main():
             milestone_epochs = [int(epoch) for epoch in args.milestone_epochs.split(',')]
             logging.info(f"Will save checkpoints at epochs: {milestone_epochs}")
         except ValueError:
-            logging.warning(f"Invalid milestone epochs format: {args.milestone_epochs}. Expected comma-separated integers.")
+            logging.warning(
+                f"Invalid milestone epochs format: {args.milestone_epochs}. Expected comma-separated integers.")
             milestone_epochs = []
 
     # Create experiment directory
@@ -552,10 +551,10 @@ def main():
         # For LOSO, get the subject ID being tested on
         if isinstance(cv, LeaveOneGroupOut):
             subject_id = groups[test_idx][0]
-            logging.info(f"--- Fold {fold+1}: Testing on subject {subject_id} ---")
+            logging.info(f"--- Fold {fold + 1}: Testing on subject {subject_id} ---")
         else:
-            subject_id = f"fold{fold+1}"
-            logging.info(f"--- Fold {fold+1} ---")
+            subject_id = f"fold{fold + 1}"
+            logging.info(f"--- Fold {fold + 1} ---")
 
         X_train_val, X_test = X[train_idx], X[test_idx]
         y_train_val, y_test = y[train_idx], y[test_idx]
@@ -573,8 +572,8 @@ def main():
                 # Randomly select subjects for validation
                 np.random.seed(42)  # For reproducibility
                 val_subjects = np.random.choice(
-                    unique_subjects, 
-                    size=max(1, int(len(unique_subjects) * args.validation_split)), 
+                    unique_subjects,
+                    size=max(1, int(len(unique_subjects) * args.validation_split)),
                     replace=False
                 )
 
@@ -586,17 +585,19 @@ def main():
                 X_train, X_val = X_train_val[train_mask], X_train_val[val_mask]
                 y_train, y_val = y_train_val[train_mask], y_train_val[val_mask]
 
-                logging.info(f"Split training data into {len(X_train)} training samples and {len(X_val)} validation samples")
+                logging.info(
+                    f"Split training data into {len(X_train)} training samples and {len(X_val)} validation samples")
                 logging.info(f"Training subjects: {np.unique(groups_train_val[train_mask])}")
                 logging.info(f"Validation subjects: {np.unique(groups_train_val[val_mask])}")
             else:
                 # If not using LOSO, we can use a simple random split
                 X_train, X_val, y_train, y_val = train_test_split(
-                    X_train_val, y_train_val, 
-                    test_size=args.validation_split, 
+                    X_train_val, y_train_val,
+                    test_size=args.validation_split,
                     random_state=42
                 )
-                logging.info(f"Split training data into {len(X_train)} training samples and {len(X_val)} validation samples")
+                logging.info(
+                    f"Split training data into {len(X_train)} training samples and {len(X_val)} validation samples")
         else:
             # If validation split is 0, use all training data for training
             X_train, X_val = X_train_val, X_train_val
@@ -614,7 +615,7 @@ def main():
         X_test_scaled = scaler.transform(X_test.reshape(-1, X_test.shape[-1])).reshape(X_test.shape)
 
         # Save the scaler
-        scaler_path = scalers_dir / f"scaler_{args.model_type}_fold_{fold+1}_subject_{subject_id}.joblib"
+        scaler_path = scalers_dir / f"scaler_{args.model_type}_fold_{fold + 1}_subject_{subject_id}.joblib"
         joblib.dump(scaler, scaler_path)
         logging.info(f"Saved scaler to {scaler_path}")
 
@@ -660,7 +661,7 @@ def main():
             )
 
             # Save the model
-            model_save_path = model_save_dir / f"{args.model_type}_fold_{fold+1}_subject_{subject_id}.pt"
+            model_save_path = model_save_dir / f"{args.model_type}_fold_{fold + 1}_subject_{subject_id}.pt"
             model.save(str(model_save_path))
             logging.info(f"Saved model to {model_save_path}")
 
@@ -695,7 +696,8 @@ def main():
             }
 
         # 6. Evaluate the model on the held-out data
-        logging.info(f"Evaluating model on {'subject ' + subject_id if isinstance(cv, LeaveOneGroupOut) else 'test set'}...")
+        logging.info(
+            f"Evaluating model on {'subject ' + subject_id if isinstance(cv, LeaveOneGroupOut) else 'test set'}...")
 
         if is_pytorch_model:
             # For PyTorch models, use the evaluate method
@@ -704,12 +706,12 @@ def main():
             # Log the metrics
             metrics_str = ", ".join([f"{k} = {v:.4f}" for k, v in metrics.items()])
             logging.info(
-                f"Test Results for {'subject ' + subject_id if isinstance(cv, LeaveOneGroupOut) else 'fold ' + str(fold+1)}: "
+                f"Test Results for {'subject ' + subject_id if isinstance(cv, LeaveOneGroupOut) else 'fold ' + str(fold + 1)}: "
                 f"{metrics_str}"
             )
 
             # Create result dictionary
-            result = {"fold": fold+1, "subject": subject_id}
+            result = {"fold": fold + 1, "subject": subject_id}
             result.update(metrics)
 
         else:
@@ -728,12 +730,12 @@ def main():
                 metric_names = model.metrics_names
 
                 logging.info(
-                    f"Test Results for {'subject ' + subject_id if isinstance(cv, LeaveOneGroupOut) else 'fold ' + str(fold+1)}: "
-                    f"{metric_names[0]} = {test_loss:.4f}" + 
+                    f"Test Results for {'subject ' + subject_id if isinstance(cv, LeaveOneGroupOut) else 'fold ' + str(fold + 1)}: "
+                    f"{metric_names[0]} = {test_loss:.4f}" +
                     (f", {metric_names[1]} = {test_mse:.4f}" if test_mse is not None else "")
                 )
 
-                result = {"fold": fold+1, "subject": subject_id, metric_names[0]: test_loss}
+                result = {"fold": fold + 1, "subject": subject_id, metric_names[0]: test_loss}
                 if test_mse is not None:
                     result[metric_names[1]] = test_mse
 
@@ -749,11 +751,11 @@ def main():
                 mae = np.mean(np.abs(X_test_scaled - predictions))
 
                 logging.info(
-                    f"Test Results for {'subject ' + subject_id if isinstance(cv, LeaveOneGroupOut) else 'fold ' + str(fold+1)}: "
+                    f"Test Results for {'subject ' + subject_id if isinstance(cv, LeaveOneGroupOut) else 'fold ' + str(fold + 1)}: "
                     f"MSE = {mse:.4f}, MAE = {mae:.4f}"
                 )
 
-                result = {"fold": fold+1, "subject": subject_id, "mse": mse, "mae": mae}
+                result = {"fold": fold + 1, "subject": subject_id, "mse": mse, "mae": mae}
 
                 # Create metrics dictionary for metadata
                 metrics = {"mse": mse, "mae": mae}
