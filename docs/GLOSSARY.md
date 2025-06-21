@@ -22,7 +22,7 @@ This glossary provides definitions for technical terms, acronyms, and domain-spe
 
 **Cross-Validation**: A model validation technique for assessing how the results of a statistical analysis will generalize to an independent data set.
 
-**Cython**: A programming language that makes writing C extensions for Python as easy as Python itself. Used in the GSR-RGBT project for performance optimization.
+**Numba**: A Just-In-Time (JIT) compiler for Python that translates Python functions to optimized machine code at runtime. Used in the GSR-RGBT project for performance optimization.
 
 ## D
 

@@ -183,14 +183,12 @@ check_pip_and_venv() {
         return 1
     fi
 
-    # Check for C compiler (needed for Cython)
-    if command_exists gcc; then
-        echo -e "  ${GREEN}✓${RESET} gcc is installed"
-    elif command_exists clang; then
-        echo -e "  ${GREEN}✓${RESET} clang is installed"
+    # Check for Numba
+    if $PYTHON -c "import numba" 2>/dev/null; then
+        echo -e "  ${GREEN}✓${RESET} Numba is installed"
     else
-        echo -e "  ${YELLOW}!${RESET} No C compiler detected. Cython extensions may fail to build."
-        echo -e "  ${YELLOW}  Please install gcc or clang if you encounter build errors.${RESET}"
+        echo -e "  ${YELLOW}!${RESET} Numba is not installed. Performance optimizations will not be available."
+        echo -e "  ${YELLOW}  It will be installed with the requirements.txt file.${RESET}"
     fi
 
     return 0
@@ -264,14 +262,13 @@ setup_environment() {
     fi
     echo -e "${GREEN}✓${RESET} Dependencies installed"
 
-    # Build Cython extensions
-    echo -e "\n${BOLD}Building Cython extensions...${RESET}"
-    $PYTHON setup.py build_ext --inplace
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}✗${RESET} Failed to build Cython extensions"
-        return 1
+    # Check for Numba
+    echo -e "\n${BOLD}Checking for Numba...${RESET}"
+    if $PYTHON -c "import numba" 2>/dev/null; then
+        echo -e "${GREEN}✓${RESET} Numba is installed"
+    else
+        echo -e "${YELLOW}!${RESET} Numba is not installed. It will be installed with the requirements.txt file."
     fi
-    echo -e "${GREEN}✓${RESET} Cython extensions built"
 
     # Check for FLIR Spinnaker SDK
     if [ "$SKIP_SDK" = false ]; then
@@ -482,10 +479,12 @@ echo -e "${BOLD}Installing required Python packages...${RESET}"
 pip install -r requirements.txt
 echo -e "  ${GREEN}✓${RESET} Required packages installed"
 
-# Build Cython extensions
-echo -e "${BOLD}Building Cython extensions...${RESET}"
-$PYTHON setup.py build_ext --inplace || {
-    echo -e "  ${YELLOW}!${RESET} Cython extensions failed to build. This may affect performance."
+# Check for Numba
+echo -e "${BOLD}Checking for Numba...${RESET}"
+if $PYTHON -c "import numba" 2>/dev/null; then
+    echo -e "  ${GREEN}✓${RESET} Numba is installed"
+else
+    echo -e "  ${YELLOW}!${RESET} Numba is not installed. It will be installed with the requirements.txt file."
     echo -e "  ${YELLOW}  Continuing with setup...${RESET}"
 }
 

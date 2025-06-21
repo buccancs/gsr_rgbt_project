@@ -24,7 +24,7 @@ except ImportError:
 # Import the functions we want to test
 # If mediapipe is not available, some of these imports might fail
 try:
-    from src.processing.preprocessing import (
+    from src.ml_pipeline.preprocessing.preprocessing import (
         process_gsr_signal,
         detect_palm_roi,
         extract_roi_signal,
@@ -32,7 +32,7 @@ try:
 except ImportError as e:
     if "mediapipe" in str(e):
         # If the error is related to mediapipe, we'll handle it in the tests
-        from src.processing.preprocessing import process_gsr_signal
+        from src.ml_pipeline.preprocessing.preprocessing import process_gsr_signal
         # Define dummy functions for the ones that depend on mediapipe
         def detect_palm_roi(frame):
             return (0, 0, 10, 10)

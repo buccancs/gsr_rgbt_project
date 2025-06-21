@@ -153,7 +153,7 @@ This document outlines the planned future improvements for the GSR-RGBT (Galvani
 
 ### 6.2 Performance Optimization
 
-**Current State:** The project has implemented Cython optimizations for some components, but further performance improvements are possible.
+**Current State:** The project has implemented Numba optimizations for some components, but further performance improvements are possible.
 
 **Proposed Improvements:**
 - Profile the application to identify performance bottlenecks

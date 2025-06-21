@@ -11,7 +11,7 @@ import pandas as pd
 project_root = Path(__file__).resolve().parents[2]
 sys.path.append(str(project_root))
 
-from src.processing.feature_engineering import align_signals, create_feature_windows, create_dataset_from_session
+from src.ml_pipeline.feature_engineering.feature_engineering import align_signals, create_feature_windows, create_dataset_from_session
 from unittest.mock import patch, MagicMock
 
 
