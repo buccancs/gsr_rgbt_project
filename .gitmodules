@@ -10,3 +10,12 @@
 [submodule "third_party/RGBTPhys_CPP"]
 	path = third_party/RGBTPhys_CPP
 	url = https://github.com/PhysiologicAILab/RGBTPhys_CPP.git
+[submodule "third_party/FactorizePhys"]
+	path = third_party/FactorizePhys
+	url = https://github.com/PhysiologicAILab/FactorizePhys.git
+[submodule "third_party/MMRPhys"]
+	path = third_party/MMRPhys
+	url = https://github.com/PhysiologicAILab/MMRPhys.git
+[submodule "third_party/TC001_SAMCL"]
+	path = third_party/TC001_SAMCL
+	url = https://github.com/PhysiologicAILab/TC001_SAMCL.git

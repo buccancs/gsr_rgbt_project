@@ -39,11 +39,27 @@ The GSR-RGBT project documentation is organized into the following categories:
   - code_improvements_summary.md (code organization improvements)
   - improvements_summary.md (broader improvements)
 
-### 5. Architecture Documentation
+### 5. Repository Documentation
+
+- **new_repositories_integration.md**: An overview of the newly added repositories and how they integrate with the project.
+- **factorizephys_overview.md**: Documentation for the FactorizePhys repository, which provides synchronized capture of RGB video, thermal video, and physiological data.
+- **mmrphys_overview.md**: Documentation for the MMRPhys repository, which implements multidimensional attention and target signal constrained factorization for remote physiological sensing.
+- **tc001_samcl_overview.md**: Documentation for the TC001_SAMCL repository, which provides specialized thermal imaging and segmentation capabilities.
+- **rgbt_phys_integration.md**: Documentation for the integration of the RGBTPhys_CPP library.
+- **shimmer_integration.md**: Documentation for the integration of Shimmer GSR and PPG sensors.
+
+### 6. Testing Documentation
+
+- **testing_strategy.md**: An overview of the testing strategy for the project, including the types of tests (unit, smoke, regression) and how they are organized.
+- **test_coverage.md**: Documentation of what components are covered by tests and what aspects of each component are tested.
+- **test_execution.md**: Instructions for running tests, including any required setup or configuration.
+- **test_mocking.md**: Documentation of the mocking strategy for external dependencies, such as hardware devices or third-party libraries.
+
+### 7. Architecture Documentation
 
 - **src/ARCHITECTURE.md**: An overview of the project's architecture, including the current structure, proposed improved structure, module boundaries, naming conventions, and documentation guidelines.
 
-### 6. Research Documentation
+### 8. Research Documentation
 
 - **research_report.md**: A report on the research conducted for the project.
 - **proposal.tex** and **proposal_updated.tex**: Research proposals for the project.
@@ -105,6 +121,16 @@ When creating new documentation, follow these guidelines:
 4. **Use Tables**: Use Markdown tables for tabular data.
 5. **Use Links**: Use links to reference other documents or external resources.
 
+### Testing Documentation
+
+1. **Test Structure**: Document the structure of tests (unit, smoke, regression) and how they are organized.
+2. **Test Coverage**: Document what components are covered by tests and what aspects of each component are tested.
+3. **Test Execution**: Provide instructions for running tests, including any required setup or configuration.
+4. **Test Mocking**: Document the mocking strategy for external dependencies, such as hardware devices or third-party libraries.
+5. **Test Data**: Document the test data used for testing, including how to generate or obtain it.
+6. **Test Edge Cases**: Document the edge cases that are tested and how they are handled.
+7. **Test Maintenance**: Provide guidelines for maintaining and updating tests as the codebase evolves.
+
 ### Code Documentation
 
 1. **Use Docstrings**: Document all classes, methods, and functions with docstrings following the Google style guide.
@@ -130,6 +156,8 @@ When creating new documentation, follow these guidelines:
 3. **API Documentation**: Generate comprehensive API documentation using tools like Sphinx or Doxygen.
 4. **User Guides**: Develop more detailed user guides for specific use cases.
 5. **Troubleshooting Guide**: Create a comprehensive troubleshooting guide that covers common issues and their solutions.
+6. **Testing Documentation**: Develop comprehensive testing documentation that covers all components, including the MMRPhysProcessor, with examples of how to write effective tests.
+7. **Continuous Integration Documentation**: Document the continuous integration setup and how it integrates with the testing framework.
 
 ### Documentation Review Process
 

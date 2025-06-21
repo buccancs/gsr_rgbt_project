@@ -254,7 +254,7 @@ class ModelConfig:
     def __init__(self, model_type=None, config_path=None):
         """
         Initialize a model configuration.
-        
+
         Args:
             model_type (str, optional): Type of model to create a default config for.
             config_path (str or Path, optional): Path to a YAML config file.
@@ -265,7 +265,7 @@ class ModelConfig:
             self.load_default_config(model_type)
         else:
             self.config = {}
-            
+
     def load_default_config(self, model_type):
         """Load the default configuration for the specified model type."""
         model_type = model_type.lower()
@@ -335,6 +335,91 @@ Several code quality improvements were made:
 - Refactored duplicate code in preprocessing and feature engineering modules
 - Implemented consistent naming conventions across the codebase
 - Added comprehensive docstrings to all classes and functions
+
+## 6. New Repository Integration
+
+The GSR-RGBT project has been enhanced with the integration of several new repositories that provide specialized functionality for physiological sensing and analysis.
+
+### 6.1 FactorizePhys Integration
+
+The FactorizePhys repository has been integrated to provide synchronized capture of RGB video, thermal video, and physiological data:
+
+- **Python Wrapper**: Created `factorize_phys_capture.py` to provide a Python interface to the C++ library
+- **Configuration Management**: Added support for various capture configurations
+- **Simulation Mode**: Implemented a simulation mode for testing without hardware
+- **Data Organization**: Enhanced the data organization structure to support the FactorizePhys output format
+
+Implementation details:
+```python
+class FactorizePhysCaptureThread(BaseCaptureThread):
+    """Thread for capturing synchronized RGB, thermal, and physiological data using FactorizePhys."""
+
+    def __init__(self, config_file=None, base_save_path=None, participant_id=None, simulation_mode=False, parent=None):
+        super().__init__(parent)
+        self.config_file = config_file
+        self.base_save_path = base_save_path
+        self.participant_id = participant_id
+        self.simulation_mode = simulation_mode
+        # ... initialization code ...
+```
+
+### 6.2 MMRPhys Integration
+
+The MMRPhys repository has been integrated to provide advanced physiological signal extraction from video data:
+
+- **Processor Implementation**: Created `mmrphys_processor.py` to interface with the MMRPhys models
+- **Model Loading**: Added support for loading pre-trained MMRPhys models
+- **Signal Processing**: Implemented methods for extracting and processing physiological signals
+- **Visualization**: Added tools for visualizing the extracted signals
+
+Implementation details:
+```python
+class MMRPhysProcessor:
+    """Processor for extracting physiological signals from video using MMRPhys models."""
+
+    def __init__(self, model_type='MMRPhysLEF', weights_path=None, device=None):
+        self.model_type = model_type
+        self.weights_path = weights_path
+        self.device = device if device else ('cuda' if torch.cuda.is_available() else 'cpu')
+        # ... initialization code ...
+
+    def process_video(self, video_path, output_dir=None, frame_limit=None):
+        """Process a video file to extract physiological signals."""
+        # ... processing code ...
+```
+
+### 6.3 TC001_SAMCL Integration
+
+The TC001_SAMCL repository has been integrated to provide specialized thermal imaging and segmentation:
+
+- **Capture Thread**: Created `tc001_thermal_capture.py` for interfacing with the TOPDON TC001 thermal camera
+- **Segmentation Integration**: Added support for the segmentation models from TC001_SAMCL
+- **Region of Interest Extraction**: Implemented methods for extracting regions of interest from thermal imagery
+- **Signal Derivation**: Added functionality to derive temporal signals from segmented thermal regions
+
+Implementation details:
+```python
+class TC001ThermalCaptureThread(BaseCaptureThread):
+    """Thread for capturing and processing thermal data from the TOPDON TC001 camera."""
+
+    def __init__(self, config_path=None, device_id=0, simulation_mode=False, parent=None):
+        super().__init__(parent)
+        self.config_path = config_path
+        self.device_id = device_id
+        self.simulation_mode = simulation_mode
+        # ... initialization code ...
+```
+
+### 6.4 Integration Architecture
+
+The integration of these repositories creates a complete pipeline for physiological sensing:
+
+1. **Data Acquisition**: FactorizePhys and RGBTPhys_CPP capture synchronized multi-modal data
+2. **Preprocessing**: TC001_SAMCL provides thermal image segmentation
+3. **Signal Extraction**: MMRPhys extracts physiological signals from the video data
+4. **Analysis**: The extracted signals are analyzed using existing tools
+
+This integrated architecture enables more comprehensive physiological monitoring by combining the strengths of each specialized component.
 
 ## Future Considerations
 

@@ -45,15 +45,17 @@ This document outlines the planned future improvements for the GSR-RGBT (Galvani
 
 ### 2.2 Improved Thermal Data Utilization
 
-**Current State:** Support for thermal video in dual-stream models has been added, but the thermal data processing could be enhanced.
+**Current State:** Support for thermal video in dual-stream models has been added, and the MMRPhysProcessor has been integrated to extract physiological signals from RGB and thermal videos. However, the thermal data processing could be further enhanced.
 
 **Proposed Improvements:**
 - Implement specialized preprocessing techniques for thermal imagery
 - Develop thermal-specific feature extractors that leverage temperature gradients
 - Create fusion methods that optimally combine information from RGB and thermal streams
 - Research and implement temperature calibration for more accurate thermal readings
+- Extend the MMRPhysProcessor to better utilize thermal data for physiological signal extraction
+- Implement cross-modal attention mechanisms for RGB-thermal fusion in the MMRPhysProcessor
 
-**Rationale:** Thermal data provides unique physiological information that complements RGB data. Better utilization of thermal data could significantly improve GSR prediction accuracy.
+**Rationale:** Thermal data provides unique physiological information that complements RGB data. Better utilization of thermal data could significantly improve GSR prediction accuracy. The MMRPhysProcessor provides a foundation for advanced physiological signal extraction, which can be further enhanced with thermal-specific techniques.
 
 ## 3. Machine Learning Models
 
@@ -85,15 +87,17 @@ This document outlines the planned future improvements for the GSR-RGBT (Galvani
 
 ### 4.1 Automated Testing Framework
 
-**Current State:** The project lacks a comprehensive automated testing framework, which is essential for ensuring code quality and preventing regressions.
+**Current State:** The project has implemented a comprehensive automated testing framework with unit, smoke, and regression tests for core components, including the newly added MMRPhysProcessor. This framework helps ensure code quality and prevent regressions.
 
 **Proposed Improvements:**
-- Implement unit tests for core functionality
-- Create integration tests for the complete pipeline
-- Develop regression tests to prevent reintroduction of fixed bugs
+- Expand test coverage to include more edge cases and error conditions
+- Implement property-based testing for complex algorithms
+- Add performance benchmarks to regression tests
 - Implement continuous integration to automatically run tests on code changes
+- Create visual regression tests for GUI components
+- Develop automated end-to-end tests with real hardware
 
-**Rationale:** Automated testing will help ensure that the codebase remains robust as it evolves. This addresses the future consideration mentioned in implementation notes.
+**Rationale:** While the current testing framework provides good coverage, expanding it further will help ensure that the codebase remains robust as it evolves. Continuous integration will automate the testing process, making it easier to catch issues early.
 
 ### 4.2 Validation Tools for Synchronization
 
@@ -163,15 +167,17 @@ This document outlines the planned future improvements for the GSR-RGBT (Galvani
 
 ### 7.1 Multi-subject Analysis
 
-**Current State:** The project focuses on individual subject analysis, but multi-subject analysis would enable broader research questions.
+**Current State:** The project focuses on individual subject analysis, but multi-subject analysis would enable broader research questions. The integration of the MMRPhysProcessor provides additional physiological signals that could be valuable for multi-subject analysis.
 
 **Proposed Improvements:**
 - Develop methods for normalizing data across subjects
 - Implement transfer learning approaches for adapting models to new subjects
 - Create visualization tools for comparing results across subjects
 - Research population-level patterns in GSR responses
+- Investigate how MMRPhys-extracted physiological signals vary across different subjects
+- Develop subject-invariant features using the combined RGB, thermal, and MMRPhys signals
 
-**Rationale:** Multi-subject analysis will enable researchers to identify common patterns and individual differences in GSR responses.
+**Rationale:** Multi-subject analysis will enable researchers to identify common patterns and individual differences in GSR responses. The additional physiological signals from the MMRPhysProcessor could provide valuable insights into individual differences and common patterns across subjects.
 
 ### 7.2 Real-time GSR Prediction
 
