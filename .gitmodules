@@ -8,5 +8,5 @@
 	path = third_party/pyshimmer
 	url = https://github.com/seemoo-lab/pyshimmer.git
 [submodule "third_party/RGBTPhys_CPP"]
-	path = third_party/rgbtphys_cpp
+	path = third_party/RGBTPhys_CPP
 	url = https://github.com/PhysiologicAILab/RGBTPhys_CPP.git
