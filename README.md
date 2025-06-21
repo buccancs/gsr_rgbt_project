@@ -3,6 +3,11 @@
 ![CI Status](https://github.com/username/gsr_rgbt_project/workflows/GSR-RGBT%20CI/badge.svg)
 [![codecov](https://codecov.io/gh/username/gsr_rgbt_project/branch/main/graph/badge.svg)](https://codecov.io/gh/username/gsr_rgbt_project)
 
+> **Note**: To see the GitHub Actions workflow files, make sure to:
+> 1. Commit and push the `.github/workflows/ci.yml` file to your GitHub repository
+> 2. View the workflows in GitHub by navigating to the "Actions" tab in your repository
+> 3. If you don't see the workflows, check that the file is in the correct location (`.github/workflows/ci.yml`)
+
 This repository contains the complete software implementation for the research project focused on estimating Galvanic
 Skin Response (GSR) from synchronized RGB and thermal video streams. The project includes a data acquisition application
 with a graphical user interface (GUI) and a full machine learning pipeline for data processing, model training, and

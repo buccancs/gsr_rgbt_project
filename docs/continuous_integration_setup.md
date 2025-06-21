@@ -38,42 +38,42 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v2
-    
+
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
         python-version: '3.8'
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install flake8 pytest pytest-cov
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install -e .
-    
+
     - name: Lint with flake8
       run: |
         flake8 src --count --select=E9,F63,F7,F82 --show-source --statistics
         flake8 src --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    
+
     - name: Test with pytest
       run: |
         pytest src/tests/unit --cov=src
         pytest src/tests/smoke
         pytest src/tests/regression
-    
+
     - name: Upload coverage report
       uses: codecov/codecov-action@v1
-    
+
     - name: Build documentation
       run: |
         pip install sphinx sphinx_rtd_theme
         cd docs
         make html
-    
+
     - name: Upload documentation
       uses: actions/upload-artifact@v2
       with:
@@ -141,6 +141,13 @@ If the CI build fails, follow these steps to troubleshoot:
 3. **Check for Environment Differences**: Look for differences between your local environment and the CI environment.
 4. **Isolate the Issue**: Determine which specific test or step is failing.
 5. **Fix and Verify**: Fix the issue and verify that it resolves the CI failure.
+
+## Viewing Workflow Files in GitHub
+
+If you're having trouble viewing the workflow files in GitHub, please refer to the [GitHub Workflows Guide](github_workflows_guide.md) for detailed instructions on how to:
+1. Commit and push workflow files to GitHub
+2. Navigate to the Actions tab in your repository
+3. Troubleshoot common issues with GitHub Actions
 
 ## Conclusion
 
