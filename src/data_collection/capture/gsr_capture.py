@@ -42,7 +42,8 @@ class GsrCaptureThread(BaseCaptureThread):
     gsr_data_point = pyqtSignal(float, float)
 
     def __init__(
-        self, port: str, sampling_rate: int, simulation_mode: bool = False, parent=None
+        self, port: str, sampling_rate: int, simulation_mode: bool = False, 
+        sensors_to_enable=None, parent=None
     ):
         """
         Initializes the GSR capture thread.
@@ -53,6 +54,8 @@ class GsrCaptureThread(BaseCaptureThread):
             sampling_rate (int): The target sampling rate in Hz (e.g., 32).
             simulation_mode (bool): If True, the thread will generate simulated
                                     GSR data instead of connecting to hardware.
+            sensors_to_enable: A bitmask of sensors to enable on the Shimmer device.
+                              If None, defaults to GSR, PPG, and Accelerometer.
             parent (QObject, optional): The parent object in the Qt hierarchy.
         """
         super().__init__(device_name="GSR", parent=parent)
@@ -60,6 +63,17 @@ class GsrCaptureThread(BaseCaptureThread):
         self.sampling_rate = sampling_rate
         self.simulation_mode = simulation_mode
         self.shimmer_device = None
+
+        # Allow dynamic sensor configuration
+        if sensors_to_enable is None and PYSHIMMER_AVAILABLE:
+            # Default to the original configuration if none is provided
+            self.sensors_to_enable = (
+                pyshimmer.Shimmer.SENSOR_GSR |
+                pyshimmer.Shimmer.SENSOR_PPG |
+                pyshimmer.Shimmer.SENSOR_ACCEL
+            )
+        else:
+            self.sensors_to_enable = sensors_to_enable
 
     def _run_simulation(self):
         """
@@ -97,9 +111,15 @@ class GsrCaptureThread(BaseCaptureThread):
         logging.info(f"Attempting to connect to Shimmer device on port {self.port}.")
         try:
             self.shimmer_device = pyshimmer.Shimmer(self.port)
-            # Configure the shimmer device (enable GSR, set sampling rate)
+            # Configure the shimmer device (set sampling rate and enable sensors)
             self.shimmer_device.set_sampling_rate(self.sampling_rate)
-            self.shimmer_device.enable_gsr()  # Enable GSR sensor
+
+            # Use the dynamic sensor configuration
+            if self.sensors_to_enable is not None:
+                self.shimmer_device.set_enabled_sensors(self.sensors_to_enable)
+            else:
+                # Fallback to just enabling GSR if no configuration was provided
+                self.shimmer_device.enable_gsr()  # Enable GSR sensor
 
             self.shimmer_device.start_streaming()
             logging.info("Successfully connected to Shimmer device and started streaming.")

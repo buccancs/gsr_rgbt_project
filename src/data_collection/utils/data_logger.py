@@ -1,7 +1,12 @@
 # src/data_collection/utils/data_logger.py
 
 import csv
+import json
 import logging
+import queue
+import subprocess
+import threading
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -12,6 +17,13 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - [%(levelname)s] - %(module)s - %(message)s",
 )
+
+def get_git_commit_hash() -> str:
+    """Gets the current git commit hash of the repository."""
+    try:
+        return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
+    except Exception:
+        return "N/A"
 
 
 class DataLogger:
@@ -38,9 +50,18 @@ class DataLogger:
         self.session_path = (
             output_dir / f"Subject_{subject_id}_{self.session_timestamp}"
         )
+        self.subject_id = subject_id
         self.fps = fps
         self.video_fourcc = cv2.VideoWriter_fourcc(*video_fourcc)
         self.is_logging = False
+
+        # Initialize data queue for buffered writing
+        self.data_queue = queue.Queue(maxsize=1000)  # Buffer up to 1000 data items
+        self.writer_thread = None
+
+        # Frame counters for video frames
+        self.frame_count_rgb = 0
+        self.frame_count_thermal = 0
 
         self.rgb_writer = None
         self.thermal_writer = None
@@ -81,6 +102,7 @@ class DataLogger:
         video_writers_initialized = False
         gsr_writer_initialized = False
         timestamp_writers_initialized = False
+        session_info_created = False
 
         try:
             # Setup video writers for both streams
@@ -122,6 +144,40 @@ class DataLogger:
 
             timestamp_writers_initialized = True
 
+            # Create session_info.json with enhanced metadata
+            from src import config
+            session_info = {
+                "participant_id": self.subject_id,
+                "session_id": self.session_timestamp,
+                "start_time_utc": time.time(),
+                "software_version": get_git_commit_hash(),
+                "config_parameters": {
+                    "FPS": self.fps,
+                    "VIDEO_FOURCC": config.VIDEO_FOURCC,
+                    "FRAME_WIDTH": frame_size_rgb[0],
+                    "FRAME_HEIGHT": frame_size_rgb[1],
+                    "RGB_CAMERA_ID": config.RGB_CAMERA_ID,
+                    "THERMAL_CAMERA_ID": config.THERMAL_CAMERA_ID,
+                    "THERMAL_SIMULATION_MODE": config.THERMAL_SIMULATION_MODE,
+                    "GSR_SAMPLING_RATE": config.GSR_SAMPLING_RATE,
+                    "GSR_SIMULATION_MODE": config.GSR_SIMULATION_MODE,
+                }
+            }
+
+            info_path = self.session_path / "session_info.json"
+            with open(info_path, 'w') as f:
+                json.dump(session_info, f, indent=4)
+
+            session_info_created = True
+            logging.info(f"Session metadata saved to {info_path}")
+
+            # Start the writer thread
+            self.frame_count_rgb = 0
+            self.frame_count_thermal = 0
+            self.writer_thread = threading.Thread(target=self._write_loop, daemon=True)
+            self.writer_thread.start()
+            logging.info("Writer thread started")
+
             self.is_logging = True
             logging.info("Logging has started. Video and CSV writers are ready.")
 
@@ -162,52 +218,104 @@ class DataLogger:
             if self.thermal_timestamps_file:
                 self.thermal_timestamps_file.close()
 
+    def _write_loop(self):
+        """
+        This method runs in a separate thread and handles all disk writing.
+        It processes items from the data queue and writes them to the appropriate files.
+        """
+        while True:
+            try:
+                # Get an item from the queue (blocks until an item is available)
+                item = self.data_queue.get()
+
+                # Check for sentinel value indicating thread should stop
+                if item is None:
+                    logging.info("Writer thread received stop signal")
+                    break
+
+                # Process the item based on its type
+                data_type, data, timestamp = item
+
+                if data_type == 'rgb':
+                    frame, timestamp = data
+                    self.rgb_writer.write(frame)
+                    self.rgb_timestamps_writer.writerow([self.frame_count_rgb, timestamp])
+                    self.frame_count_rgb += 1
+
+                elif data_type == 'thermal':
+                    frame, timestamp = data
+                    self.thermal_writer.write(frame)
+                    self.thermal_timestamps_writer.writerow([self.frame_count_thermal, timestamp])
+                    self.frame_count_thermal += 1
+
+                elif data_type == 'gsr':
+                    gsr_value, shimmer_timestamp = data
+                    system_timestamp = datetime.now().isoformat()
+                    self.gsr_writer.writerow([system_timestamp, shimmer_timestamp, gsr_value])
+
+                # Mark the task as done
+                self.data_queue.task_done()
+
+            except Exception as e:
+                logging.error(f"Error in writer thread: {e}")
+                # Continue processing other items even if one fails
+                continue
+
     def log_rgb_frame(self, frame, timestamp=None, frame_number=None):
         """
-        Writes a single RGB frame to the video file and logs its timestamp.
+        Adds a single RGB frame to the queue for writing to disk.
 
         Args:
             frame: The video frame to write
             timestamp (float, optional): The high-resolution timestamp of the frame capture
             frame_number (int, optional): The sequential number of the frame
         """
-        if self.rgb_writer and self.is_logging:
-            self.rgb_writer.write(frame)
-
-            # Log the timestamp if provided
-            if timestamp is not None and self.rgb_timestamps_writer:
-                frame_num = frame_number if frame_number is not None else self.rgb_writer.get(cv2.CAP_PROP_POS_FRAMES)
-                self.rgb_timestamps_writer.writerow([frame_num, timestamp])
+        if self.is_logging:
+            # Add the frame to the queue instead of writing directly
+            try:
+                item = ('rgb', (frame, timestamp), timestamp)
+                self.data_queue.put_nowait(item)  # Non-blocking put
+            except queue.Full:
+                logging.warning("Data queue is full! Dropping RGB frame.")
+                # In a production system, you might want to implement a more sophisticated
+                # strategy for handling queue overflow, such as dropping older frames
 
     def log_thermal_frame(self, frame, timestamp=None, frame_number=None):
         """
-        Writes a single thermal frame to the video file and logs its timestamp.
+        Adds a single thermal frame to the queue for writing to disk.
 
         Args:
             frame: The video frame to write
             timestamp (float, optional): The high-resolution timestamp of the frame capture
             frame_number (int, optional): The sequential number of the frame
         """
-        if self.thermal_writer and self.is_logging:
-            self.thermal_writer.write(frame)
-
-            # Log the timestamp if provided
-            if timestamp is not None and self.thermal_timestamps_writer:
-                frame_num = frame_number if frame_number is not None else self.thermal_writer.get(cv2.CAP_PROP_POS_FRAMES)
-                self.thermal_timestamps_writer.writerow([frame_num, timestamp])
+        if self.is_logging:
+            # Add the frame to the queue instead of writing directly
+            try:
+                item = ('thermal', (frame, timestamp), timestamp)
+                self.data_queue.put_nowait(item)  # Non-blocking put
+            except queue.Full:
+                logging.warning("Data queue is full! Dropping thermal frame.")
+                # In a production system, you might want to implement a more sophisticated
+                # strategy for handling queue overflow, such as dropping older frames
 
     def log_gsr_data(self, gsr_value: float, shimmer_timestamp: float):
         """
-        Writes a single GSR data point with timestamps to the CSV file.
+        Adds a single GSR data point to the queue for writing to disk.
 
         Args:
             gsr_value (float): The GSR value from the sensor
             shimmer_timestamp (float): The timestamp from the Shimmer device
         """
-        if self.gsr_writer and self.is_logging:
-            # Use ISO 8601 format for precise, standardized system timestamps
-            system_timestamp = datetime.now().isoformat()
-            self.gsr_writer.writerow([system_timestamp, shimmer_timestamp, gsr_value])
+        if self.is_logging:
+            # Add the GSR data to the queue instead of writing directly
+            try:
+                item = ('gsr', (gsr_value, shimmer_timestamp), shimmer_timestamp)
+                self.data_queue.put_nowait(item)  # Non-blocking put
+            except queue.Full:
+                logging.warning("Data queue is full! Dropping GSR data point.")
+                # In a production system, you might want to implement a more sophisticated
+                # strategy for handling queue overflow, such as aggregating GSR values
 
     def stop_logging(self):
         """
@@ -218,6 +326,25 @@ class DataLogger:
             return
 
         logging.info("Stopping logger and saving all files...")
+
+        # Stop the writer thread by sending a sentinel value
+        if self.writer_thread and self.writer_thread.is_alive():
+            logging.info("Stopping writer thread...")
+            self.data_queue.put(None)  # Sentinel value to stop the thread
+            self.writer_thread.join(timeout=5.0)  # Wait up to 5 seconds for thread to finish
+            if self.writer_thread.is_alive():
+                logging.warning("Writer thread did not stop within timeout. Some data may be lost.")
+            else:
+                logging.info("Writer thread stopped successfully")
+
+        # Make sure all queued items are processed
+        try:
+            self.data_queue.join()  # Wait for all queued items to be processed
+            logging.info("All queued data items processed")
+        except Exception as e:
+            logging.warning(f"Error waiting for queue to empty: {e}")
+
+        # Close all file handles
         if self.rgb_writer:
             self.rgb_writer.release()
         if self.thermal_writer:

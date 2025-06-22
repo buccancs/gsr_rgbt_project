@@ -19,3 +19,12 @@
 [submodule "third_party/TC001_SAMCL"]
 	path = third_party/TC001_SAMCL
 	url = https://github.com/PhysiologicAILab/TC001_SAMCL.git
+[submodule "third_party/Shimmer-C-API"]
+	path = third_party/Shimmer-C-API
+	url = https://github.com/ShimmerEngineering/Shimmer-C-API.git
+[submodule "third_party/ShimmerAndroidAPI"]
+	path = third_party/ShimmerAndroidAPI
+	url = https://github.com/ShimmerEngineering/ShimmerAndroidAPI.git
+[submodule "third_party/Shimmer-Java-Android-API"]
+	path = third_party/Shimmer-Java-Android-API
+	url = https://github.com/ShimmerEngineering/Shimmer-Java-Android-API.git

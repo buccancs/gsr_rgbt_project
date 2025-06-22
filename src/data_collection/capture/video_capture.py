@@ -53,44 +53,51 @@ class VideoCaptureThread(BaseCaptureThread):
         Run the capture thread with real hardware.
 
         This method continuously reads frames from the camera and emits them
-        with timestamps until the thread is stopped.
+        with timestamps until the thread is stopped. It includes a reconnect
+        mechanism to handle device disconnections during long experiments.
         """
-        try:
-            # Attempt to open the video capture device
-            # Use cv2.CAP_DSHOW on Windows for better camera support
-            if sys.platform == "win32":
-                self.cap = cv2.VideoCapture(self.camera_id, cv2.CAP_DSHOW)
-            else:
-                self.cap = cv2.VideoCapture(self.camera_id)
+        while self.is_running:  # Outer reconnect loop
+            try:
+                # --- Initialization ---
+                logging.info(f"Attempting to connect to {self.device_name} camera (ID: {self.camera_id})...")
+                if sys.platform == "win32":
+                    self.cap = cv2.VideoCapture(self.camera_id, cv2.CAP_DSHOW)
+                else:
+                    self.cap = cv2.VideoCapture(self.camera_id)
 
-            if not self.cap.isOpened():
-                logging.error(
-                    f"Could not open video source for device {self.camera_id}."
-                )
-                self.is_running = False
-                return
+                if not self.cap.isOpened():
+                    logging.error(f"Could not open {self.device_name} camera. Retrying in 5 seconds...")
+                    if self.is_running:
+                        self._sleep(5)
+                    continue  # Retry connection in the outer loop
 
-            # Set desired camera properties
-            self.cap.set(cv2.CAP_PROP_FPS, self.fps)
+                logging.info(f"{self.device_name} camera connected successfully.")
+                # Set desired camera properties
+                self.cap.set(cv2.CAP_PROP_FPS, self.fps)
 
-            while self.is_running:
-                ret, frame = self.cap.read()
+                # --- Inner Capture Loop ---
+                while self.is_running:
+                    ret, frame = self.cap.read()
 
-                if not ret:
-                    logging.warning(f"Dropped frame from {self.device_name} camera.")
-                    # Prevent busy-waiting on error
-                    self._sleep(0.01)
-                    continue
+                    if not ret:
+                        logging.warning(f"Dropped frame from {self.device_name} camera. Possible disconnection.")
+                        # Break inner loop to attempt reconnection
+                        break
 
-                # Emit the captured frame with timestamp for other components to use
-                current_capture_time = self.get_current_timestamp()
-                logging.info(f"VideoCaptureThread: Emitting frame with timestamp {current_capture_time}")
-                self.frame_captured.emit(frame, current_capture_time)
+                    # Emit the captured frame with timestamp for other components to use
+                    current_capture_time = self.get_current_timestamp()
+                    logging.info(f"VideoCaptureThread: Emitting frame with timestamp {current_capture_time}")
+                    self.frame_captured.emit(frame, current_capture_time)
 
-        except Exception as e:
-            logging.error(
-                f"An exception occurred in {self.device_name} capture thread: {e}"
-            )
+            except Exception as e:
+                logging.error(f"Exception in {self.device_name} thread: {e}. Attempting to reconnect...")
+            finally:
+                if self.cap:
+                    self.cap.release()
+                    self.cap = None
+                # Wait a moment before trying to reconnect to avoid spamming connection attempts
+                if self.is_running:
+                    self._sleep(2)
 
     def _cleanup(self):
         """

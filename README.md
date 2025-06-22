@@ -117,8 +117,23 @@ Before running the data collection application, you must configure your hardware
 - **Camera IDs**: Run a camera utility on your machine to find the correct device indices for your RGB and thermal cameras.
   Update RGB_CAMERA_ID and THERMAL_CAMERA_ID accordingly.
 
-- **GSR Sensor**: If you are using a physical Shimmer sensor, set GSR_SIMULATION_MODE = False and update GSR_SENSOR_PORT to
-  the correct serial port (e.g., 'COM3' on Windows).
+- **GSR Sensor**: If you are using a physical Shimmer sensor, set GSR_SIMULATION_MODE = False. The application will 
+  automatically detect the Shimmer device's COM port. If automatic detection fails, it will fall back to simulation mode.
+  You can also manually specify the port by setting GSR_SENSOR_PORT to the correct serial port (e.g., 'COM3' on Windows).
+
+- **Shimmer Sensor Configuration**: The application supports dynamic configuration of Shimmer sensors. You can specify
+  which sensors to enable (GSR, PPG, Accelerometer) by passing a custom configuration to the GsrCaptureThread. By default,
+  all three sensors are enabled.
+
+- **Shimmer API Integration**: The application includes a unified ShimmerAdapter that integrates with multiple Shimmer APIs:
+  - **pyshimmer**: Used for basic functionality (Bluetooth communication, data streaming)
+  - **Shimmer-C-API**: Used for advanced signal processing (ECG/PPG to Heart Rate/IBI, filtering)
+  - **Shimmer-Java-Android-API**: Used for additional features (GSR calibration, 3D orientation)
+  - **ShimmerAndroidAPI**: Used for Android-specific features
+
+  The adapter automatically detects which APIs are available and provides a consistent interface regardless of the
+  underlying implementation. This allows the application to leverage the strengths of each API while maintaining
+  a clean and consistent codebase.
 
 ### 5. Test System and Synchronization
 
@@ -142,7 +157,7 @@ For more information about the data synchronization approach used in this projec
 
 ### 6. Run Everything (All-in-One Command)
 
-If you want to run all components of the system in sequence, you can use the unified tool script:
+The project includes a unified tool script (gsr_rgbt_tools.sh) that serves as the canonical interface for all setup and run tasks:
 
 ```bash
 # Run everything (validation, tests, pipeline, and optionally the app)

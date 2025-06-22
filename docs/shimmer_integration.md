@@ -1,8 +1,15 @@
-# Shimmer GSR and PPG Integration with RGBTPhys_CPP
+# Shimmer Integration Guide
 
 ## Overview
 
-This document describes how to use the Shimmer GSR and PPG integration with RGBTPhys_CPP. The integration allows RGBTPhys_CPP to capture and process physiological data from Shimmer devices, specifically Galvanic Skin Response (GSR) and Photoplethysmography (PPG) signals.
+This document describes how to use the Shimmer integration in the GSR-RGBT project. The integration allows the application to capture and process physiological data from Shimmer devices, specifically Galvanic Skin Response (GSR) and Photoplethysmography (PPG) signals.
+
+The project includes several components that work together to provide a seamless experience when working with Shimmer devices:
+
+1. **Automatic COM Port Detection**: The application automatically detects the COM port of connected Shimmer devices.
+2. **Dynamic Sensor Configuration**: Users can specify which sensors to enable on the Shimmer device.
+3. **Unified API Adapter**: The ShimmerAdapter class provides a unified interface to multiple Shimmer APIs.
+4. **Integration with RGBTPhys_CPP**: The Shimmer devices can be used with RGBTPhys_CPP for advanced processing.
 
 ## Configuration
 
@@ -87,6 +94,137 @@ The Shimmer GSR and PPG data can be used in conjunction with other components of
 - **Synchronized with RGB and thermal video**: The physiological data is time-synchronized with the video data, allowing for multimodal analysis.
 - **Analysis with neurokit2 and physiokit**: The captured data can be processed and analyzed using the neurokit2 and physiokit libraries.
 - **Ground truth for remote sensing**: The contact-based measurements can serve as ground truth for remote physiological sensing algorithms.
+
+## New Features
+
+### Automatic COM Port Detection
+
+The `find_shimmer_com_port` function in `src/utils/device_utils.py` automatically scans all available COM ports and identifies the one connected to a Shimmer device. This eliminates the need for users to manually configure the COM port.
+
+```python
+from src.utils.device_utils import find_shimmer_com_port, DeviceNotFoundError
+
+try:
+    shimmer_port = find_shimmer_com_port()
+    print(f"Found Shimmer device on port {shimmer_port}")
+except DeviceNotFoundError as e:
+    print(f"Error: {e}")
+    # Fall back to simulation mode or another alternative
+```
+
+If no Shimmer device is found, the function raises a `DeviceNotFoundError`. The application handles this by falling back to simulation mode.
+
+### Dynamic Sensor Configuration
+
+The `GsrCaptureThread` class in `src/data_collection/capture/gsr_capture.py` supports dynamic configuration of which sensors to enable on the Shimmer device. By default, it enables the GSR, PPG, and Accelerometer sensors, but you can specify a custom configuration:
+
+```python
+from src.data_collection.capture.gsr_capture import GsrCaptureThread
+import pyshimmer
+
+# Enable only GSR sensor
+custom_sensors = pyshimmer.Shimmer.SENSOR_GSR
+
+# Create a GSR capture thread with custom sensor configuration
+gsr_thread = GsrCaptureThread(
+    port="COM3",
+    sampling_rate=32,
+    simulation_mode=False,
+    sensors_to_enable=custom_sensors
+)
+```
+
+### Unified API Adapter
+
+The `ShimmerAdapter` class in `src/utils/shimmer_adapter.py` provides a unified interface to multiple Shimmer APIs:
+
+1. **pyshimmer**: Used for basic functionality (Bluetooth communication, data streaming)
+2. **Shimmer-C-API**: Used for advanced signal processing (ECG/PPG to Heart Rate/IBI, filtering)
+3. **Shimmer-Java-Android-API**: Used for additional features (GSR calibration, 3D orientation)
+4. **ShimmerAndroidAPI**: Used for Android-specific features
+
+The adapter automatically detects which APIs are available and provides a consistent interface regardless of the underlying implementation.
+
+#### Basic Usage
+
+```python
+from src.utils.shimmer_adapter import ShimmerAdapter
+
+# Create an adapter
+adapter = ShimmerAdapter(
+    port="COM3",
+    sampling_rate=32,
+    simulation_mode=False
+)
+
+# Connect to the device
+if adapter.connect():
+    print("Connected to Shimmer device")
+
+    # Configure sensors
+    adapter.set_enabled_sensors(0x07)  # Example bitmask
+
+    # Start streaming
+    adapter.start_streaming()
+
+    # Read data
+    packet = adapter.read_data_packet()
+    if packet:
+        print(f"GSR value: {packet.get('GSR_CAL')}")
+
+    # Stop streaming and disconnect
+    adapter.stop_streaming()
+    adapter.disconnect()
+else:
+    print("Failed to connect to Shimmer device")
+```
+
+#### Advanced Processing
+
+The adapter provides methods for advanced signal processing when the Shimmer-C-API is available:
+
+```python
+# Process ECG data to extract heart rate and IBI
+ecg_data = [1.0, 2.0, 3.0]  # Example data
+heart_rate, ibi_values = adapter.process_ecg_to_hr(ecg_data)
+print(f"Heart rate: {heart_rate} BPM")
+print(f"IBI values: {ibi_values} ms")
+
+# Process PPG data to extract heart rate and IBI
+ppg_data = [1.0, 2.0, 3.0]  # Example data
+heart_rate, ibi_values = adapter.process_ppg_to_hr(ppg_data)
+print(f"Heart rate: {heart_rate} BPM")
+print(f"IBI values: {ibi_values} ms")
+
+# Apply a filter to data
+data = [1.0, 2.0, 3.0]  # Example data
+filter_type = "lowpass"
+params = {"cutoff": 10.0}
+filtered_data = adapter.apply_filter(data, filter_type, params)
+```
+
+#### Checking Available Capabilities
+
+You can check which advanced processing capabilities are available:
+
+```python
+capabilities = adapter.get_advanced_processing_capabilities()
+print(f"Available capabilities: {capabilities}")
+```
+
+## Testing
+
+The project includes comprehensive test suites for all Shimmer-related components:
+
+- `src/tests/unit/utils/test_device_utils.py`: Tests for the automatic COM port detection.
+- `src/tests/unit/data_collection/capture/test_gsr_capture.py`: Tests for the GSR capture thread, including dynamic sensor configuration.
+- `src/tests/unit/utils/test_shimmer_adapter.py`: Tests for the ShimmerAdapter class.
+
+To run the tests:
+
+```bash
+python -m unittest discover -s src/tests
+```
 
 ## Future Improvements
 
