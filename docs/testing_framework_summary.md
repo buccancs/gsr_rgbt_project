@@ -2,6 +2,8 @@
 
 ## Introduction
 
+**Note: This document has been consolidated into testing_strategy.md. Please refer to that document for the complete testing information.**
+
 This document provides a comprehensive summary of the testing framework implemented for the GSR-RGBT project. It covers the testing strategy, test types, test organization, test coverage, and documentation created to support the testing effort.
 
 ## Testing Framework Overview

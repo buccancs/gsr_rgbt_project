@@ -1,29 +1,10 @@
-\documentclass[12pt]{article}
-\usepackage{graphicx}
-\usepackage[margin=1in]{geometry}
-\usepackage{hyperref}
-\title{\textbf{Contactless Prediction of Galvanic Skin Response (GSR) via RGB-Thermal Video: Technical Proposal and Impact Analysis}}
-\author{Department of Computer Science, University X}
-\date{\today}
-
-\begin{document}
-    \maketitle
-
-    \begin{abstract}
-        Contactless physiological monitoring is an emerging field that leverages computer vision to extract vital signals without physical sensors. This proposal presents a novel approach to predicting Galvanic Skin Response (GSR) from synchronised RGB and thermal video. GSR (also known as electrodermal activity) reflects sympathetic nervous system arousal and is widely used in stress and emotion research. Traditionally, GSR is measured via contact sensors on the skin, limiting long-term monitoring and user comfort. Recent advances in video-based sensing have enabled contactless estimation of heart rate, respiration, and other vitals, but GSR has received little attention. We propose to develop a machine learning system that takes RGB-thermal video of one hand as input and outputs predicted GSR levels, while the ground-truth GSR is measured from the opposite hand (the "mirror effect"). Our approach uses advanced hand landmark detection to identify multiple regions of interest (Multi-ROI) that may correlate with GSR activity. The system will be validated with ground-truth GSR data under controlled emotional stimuli. In addition to the technical proposal, we analyze the scientific merit, practical impact, and societal implications of this work. Our contributions will include a new dataset of RGB-thermal hand videos with GSR labels, baseline algorithms for contactless GSR estimation using the Multi-ROI approach, and evaluations of feasibility in real-world scenarios. This proposal is structured as follows: after an introduction and project goals, we outline deliverables, discuss impact and applications, and address ethical/data governance issues, concluding with future work directions.
-    \end{abstract}
-
-    \tableofcontents
+% This file has been superseded by proposal_updated.tex
+% Please refer to proposal_updated.tex for the current version of the proposal.
+% This file is kept for historical reference only.
 
 
-    \section{Introduction}
-    Galvanic Skin Response (GSR), or Electrodermal Activity (EDA), is the change in skin electrical conductance caused by emotional arousal. GSR increases with sweat gland activity under sympathetic activation, making it a sensitive measure of stress and emotion. In clinical and affective computing contexts, GSR is a primary indicator of stress and has been effectively used in anxiety detection and human-computer interaction studies. Traditionally, GSR is measured via electrodes placed on the hands or fingers, which can be intrusive and impractical for continuous monitoring.
 
-    Contactless monitoring using cameras has gained traction because it can extract vital signs (heart rate, respiration, SpO$_2$, etc.) from facial video via photoplethysmography (PPG) or thermal patterns. For example, camera-based methods can accurately recover pulse waveforms (remote PPG) and infer heart rate and respiratory rate without physical contact. Such Visual Contactless Physiological Monitoring (VCPM) systems promise comfort, automation, and reduced infection risk in healthcare settings. However, as noted in recent reviews, the application of contactless techniques to electrodermal signals remains largely unexplored. Jo \emph{et al.} (2021) specifically point out that while many bio-signals have contactless alternatives, non-contact detection of GSR is lacking.
 
-    A recent conference study by Jo \emph{et al.} demonstrates the concept of non-contact GSR estimation: they recorded participants' faces with an infrared camera while simultaneously measuring finger GSR under visual stress stimuli, and found correlations between facial image intensities and the GSR sensor output. This suggests that sweat-related micro-movements or heat changes in facial regions may encode GSR information. Meanwhile, contactless emotion and stress recognition has been validated via heart rate variability from video or thermal facial patterns. For instance, remote cameras have successfully estimated heart rate variability and classified stress vs. relaxation states, and thermal imaging has shown that facial temperature trends can discriminate stress conditions (using GSR as the reference standard). These studies establish a precedent: video signals contain rich autonomic information.
-
-    Building on this context, our project aims to pioneer the contactless estimation of GSR using dual-camera video (RGB and thermal). By combining color and thermal cues, we hope to capture both subtle skin color/vascular changes and heat distribution changes due to sweat or blood flow. This multi-modal approach may improve robustness under varied lighting and individual differences. The key novelty is an end-to-end pipeline that takes live video as input and outputs a continuous GSR prediction, effectively reading subtle facial cues related to sweat gland activation. The following sections outline our technical approach, deliverables, and the expected impact of this work, emphasizing both scientific merit and societal considerations.
 
     \begin{figure}[ht]
         \centering
