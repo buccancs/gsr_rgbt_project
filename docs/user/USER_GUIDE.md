@@ -1,17 +1,17 @@
-# Integrated System Tutorial: Using FactorizePhys, MMRPhys, and TC001_SAMCL Together
+# User Guide: GSR-RGBT Physiological Monitoring System
 
-This tutorial provides a step-by-step guide for using the integrated system that combines FactorizePhys, MMRPhys, and TC001_SAMCL for comprehensive physiological sensing and analysis.
+This comprehensive user guide provides step-by-step instructions for using the GSR-RGBT system that combines FactorizePhys, MMRPhys, and TC001_SAMCL for comprehensive physiological sensing and analysis.
 
 ## Overview
 
-The integrated system provides a complete pipeline for:
+The GSR-RGBT system provides a complete pipeline for:
 
 1. **Data Acquisition**: Capturing synchronized RGB video, thermal video, and physiological data using FactorizePhys
 2. **Thermal Segmentation**: Identifying regions of interest in thermal imagery using TC001_SAMCL
 3. **Signal Extraction**: Extracting physiological signals from video data using MMRPhys
 4. **Analysis**: Processing and visualizing the extracted signals
 
-For a comprehensive overview of how these repositories are integrated and work together, please refer to the [New Repositories Integration](new_repositories_integration.md) document.
+For a comprehensive overview of how these repositories are integrated and work together, please refer to the [System Architecture](ARCHITECTURE.md) document.
 
 ## Prerequisites
 
@@ -39,7 +39,7 @@ Before using the integrated system, ensure you have:
 
 3. Install the required dependencies:
    ```bash
-   pip install -r requirements.txt
+   ./gsr_rgbt_tools.sh setup
    ```
 
 4. Build the C++ components (FactorizePhys and RGBTPhys_CPP):
@@ -49,6 +49,30 @@ Before using the integrated system, ensure you have:
    cd ../../third_party/FactorizePhys
    make
    cd ../..
+   ```
+
+## Quick Start
+
+The easiest way to get started is using the unified tool script:
+
+1. **Set up the environment**:
+   ```bash
+   ./gsr_rgbt_tools.sh setup
+   ```
+
+2. **Start data collection**:
+   ```bash
+   ./gsr_rgbt_tools.sh collect
+   ```
+
+3. **Train models on collected data**:
+   ```bash
+   ./gsr_rgbt_tools.sh train
+   ```
+
+4. **Evaluate results**:
+   ```bash
+   ./gsr_rgbt_tools.sh evaluate --visualize
    ```
 
 ## Usage Scenarios
@@ -235,6 +259,50 @@ To combine signals from different modalities:
 
 4. The fused signals will provide more robust physiological measurements.
 
+## Command Line Interface
+
+The project includes a unified tool script for easy access to all functionality:
+
+### Basic Commands
+
+```bash
+# Get help
+./gsr_rgbt_tools.sh help
+
+# Set up environment
+./gsr_rgbt_tools.sh setup
+
+# Start data collection
+./gsr_rgbt_tools.sh collect
+
+# Train models
+./gsr_rgbt_tools.sh train
+
+# Evaluate models
+./gsr_rgbt_tools.sh evaluate
+
+# Run tests
+./gsr_rgbt_tools.sh test
+```
+
+### Advanced Commands
+
+```bash
+# Train specific model with custom configuration
+./gsr_rgbt_tools.sh train --model=lstm --config=configs/custom.yaml
+
+# Collect data in simulation mode
+./gsr_rgbt_tools.sh collect --simulate
+
+# Evaluate with visualizations
+./gsr_rgbt_tools.sh evaluate --visualize
+
+# Get detailed help for specific commands
+./gsr_rgbt_tools.sh help collect
+./gsr_rgbt_tools.sh help train
+./gsr_rgbt_tools.sh help troubleshoot
+```
+
 ## Troubleshooting
 
 ### Common Issues
@@ -242,9 +310,10 @@ To combine signals from different modalities:
 1. **Hardware Connection Problems**:
    - Ensure all devices are properly connected and powered.
    - Check that the correct COM ports and device IDs are specified in the configuration files.
+   - Run `./gsr_rgbt_tools.sh test` to validate hardware connectivity.
 
 2. **Missing Dependencies**:
-   - Run `pip install -r requirements.txt` to install all required dependencies.
+   - Run `./gsr_rgbt_tools.sh setup --force` to reinstall all dependencies.
    - For CUDA support, ensure you have the correct version of PyTorch installed.
 
 3. **Segmentation Issues**:
@@ -256,24 +325,120 @@ To combine signals from different modalities:
    - Minimize subject movement during capture.
    - Check that the thermal camera is properly calibrated.
 
+5. **Python Import Errors**:
+   - Activate the virtual environment: `source .venv/bin/activate` (Linux/macOS) or `.venv\Scripts\activate` (Windows)
+   - Rebuild Cython extensions: `python setup.py build_ext --inplace`
+
+6. **GUI Application Crashes**:
+   - Check console output for error messages
+   - Try running in simulation mode first: `./gsr_rgbt_tools.sh collect --simulate`
+   - Verify all hardware is properly connected
+
 ### Getting Help
 
-If you encounter issues not covered in this tutorial:
+If you encounter issues not covered in this guide:
 
-1. Check the documentation for each individual component:
-   - [FactorizePhys Documentation](system_architecture.md#factorizephys-repository-overview)
-   - [MMRPhys Documentation](system_architecture.md#mmrphys-repository-overview)
-   - [TC001_SAMCL Documentation](system_architecture.md#tc001_samcl-repository-overview)
+1. **Use the built-in troubleshooting guide**:
+   ```bash
+   ./gsr_rgbt_tools.sh help troubleshoot
+   ```
 
-2. Review the integration documentation:
-   - [New Repositories Integration](system_architecture.md#integration-of-new-repositories-in-the-gsr-rgbt-project)
-   - [RGBTPhys_CPP Integration](technical_guide.md#rgbtphys_cpp-integration)
-   - [Shimmer Integration](technical_guide.md#shimmer-integration)
+2. **Check the documentation for each component**:
+   - [System Architecture](ARCHITECTURE.md)
+   - [Developer Guide](DEVELOPER_GUIDE.md)
+   - [Technical Guide](technical_guide.md)
 
-3. Check the issue tracker on GitHub for known issues and solutions.
+3. **Run system diagnostics**:
+   ```bash
+   ./gsr_rgbt_tools.sh test
+   ```
+
+4. **Check the issue tracker on GitHub** for known issues and solutions.
+
+## Data Management
+
+### Data Storage Structure
+
+The system organizes data in a structured format:
+
+```
+data/
+├── recordings/
+│   ├── subject_01/
+│   │   ├── session_001/
+│   │   │   ├── rgb_video.avi
+│   │   │   ├── thermal_video.avi
+│   │   │   ├── gsr_data.csv
+│   │   │   └── timestamps.csv
+│   │   └── session_002/
+│   └── subject_02/
+├── processed/
+│   ├── features/
+│   ├── models/
+│   └── results/
+└── outputs/
+    ├── models/
+    ├── logs/
+    └── visualizations/
+```
+
+### Data Export and Analysis
+
+1. **Export data for external analysis**:
+   ```bash
+   python src/scripts/export_data.py --input data/recordings/subject_01 --format csv --output exports/
+   ```
+
+2. **Generate analysis reports**:
+   ```bash
+   python src/scripts/generate_report.py --data data/recordings --output reports/
+   ```
+
+3. **Visualize results**:
+   ```bash
+   ./gsr_rgbt_tools.sh evaluate --visualize --output visualizations/
+   ```
+
+## Best Practices
+
+### Data Collection
+
+1. **Environment Setup**:
+   - Ensure consistent lighting conditions
+   - Minimize background noise and movement
+   - Maintain comfortable room temperature
+
+2. **Subject Preparation**:
+   - Allow subjects to acclimate to the environment
+   - Ensure proper sensor placement
+   - Provide clear instructions to subjects
+
+3. **Quality Control**:
+   - Monitor signal quality in real-time
+   - Record environmental conditions
+   - Document any issues or anomalies
+
+### Data Processing
+
+1. **Preprocessing**:
+   - Apply appropriate filtering to remove noise
+   - Synchronize data streams properly
+   - Handle missing data appropriately
+
+2. **Feature Extraction**:
+   - Use validated feature extraction methods
+   - Consider multiple time windows
+   - Validate extracted features
+
+3. **Model Training**:
+   - Use appropriate cross-validation strategies
+   - Monitor for overfitting
+   - Validate on independent test sets
 
 ## Conclusion
 
-The integrated system provides a powerful platform for physiological sensing and analysis. By combining the strengths of FactorizePhys, MMRPhys, and TC001_SAMCL, you can capture synchronized multi-modal data, extract physiological signals, and perform advanced analysis.
+The GSR-RGBT system provides a powerful platform for physiological sensing and analysis. By combining the strengths of FactorizePhys, MMRPhys, and TC001_SAMCL, you can capture synchronized multi-modal data, extract physiological signals, and perform advanced analysis.
 
-This tutorial has covered the basic usage scenarios, but the system is highly configurable and can be adapted to a wide range of research and application needs. Experiment with different configurations and processing pipelines to find the optimal setup for your specific use case.
+This user guide has covered the basic usage scenarios, but the system is highly configurable and can be adapted to a wide range of research and application needs. Experiment with different configurations and processing pipelines to find the optimal setup for your specific use case.
+
+For more advanced topics and development information, please refer to the [Developer Guide](DEVELOPER_GUIDE.md) and [Technical Guide](technical_guide.md).

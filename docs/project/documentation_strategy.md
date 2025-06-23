@@ -6,61 +6,90 @@ This document outlines the documentation strategy for the GSR-RGBT project, incl
 
 ## Documentation Structure
 
-The GSR-RGBT project documentation is organized into the following categories:
+The GSR-RGBT project documentation is organized into a hierarchical structure with clear separation of concerns. The main entry point is the **README.md** file at the project root, which serves as the "Single Source of Truth" with comprehensive information presented through collapsible sections.
 
-### 1. Project Overview Documentation
+### Root Level Documentation
 
-- **README.md**: The main entry point for the project, providing a high-level overview, installation instructions, and basic usage examples.
-- **SUMMARY.md**: A summary of the project's purpose, features, and components.
-- **guide.md**: A user guide for the project, focusing on how to use the application.
+- **README.md**: The definitive entry point containing:
+  - Project overview and features
+  - Quick start guide (3-step setup)
+  - Detailed installation and setup instructions (collapsible)
+  - Hardware setup guides (collapsible)
+  - Usage instructions (collapsible)
+  - Troubleshooting guide (collapsible)
+  - Developer guide overview (collapsible)
+  - System architecture overview (collapsible)
+  - Command line interface documentation
+  - Citation and license information
 
-### 2. Project Timeline Documentation
+- **guide.md**: Legacy user guide (maintained for compatibility)
+- **gsr_rgbt_tools.sh**: Unified tool script with comprehensive built-in help system
 
-- **project_timeline.md**: A comprehensive timeline of the project's development, including historical development, major iterations, key technical achievements, and future plans. This document consolidates information from:
-  - repository_development_timeline.md (detailed commit history)
-  - project_evolution_timeline.md (conceptual history of major iterations)
-  - project_plan_timeline.md (forward-looking plan)
-  - project_development_summary.md (high-level summary of development phases)
+### Organized Documentation Structure (docs/)
 
-### 3. Technical Documentation
+The documentation is organized into logical subdirectories for easy navigation:
 
-- **technical_guide.md**: A comprehensive technical guide covering hardware setup, device integration, data synchronization, and system validation. This document consolidates information from:
-  - device_integration.md (device integration details)
-  - equipment_setup.md (hardware setup instructions)
-  - timestamp_synchronization.md (synchronization methods)
-  - synchronization.md (synchronization approach)
+#### 1. User Documentation (docs/user/)
 
-### 4. Implementation Documentation
+- **USER_GUIDE.md**: Complete tutorial for using the integrated system
+  - Overview of the multi-repository system
+  - Installation and setup instructions
+  - Usage scenarios (real-time monitoring, batch processing, end-to-end)
+  - Configuration options for all components
+  - Advanced usage patterns
+  - Troubleshooting and best practices
 
-- **implementation_overview.md**: A comprehensive overview of the implementation details and improvements made to the project. This document consolidates information from:
-  - implementation_notes.md (detailed implementation notes)
-  - implementation_improvements.md (key improvements)
-  - code_improvements_summary.md (code organization improvements)
-  - improvements_summary.md (broader improvements)
+- **DEPLOYMENT_GUIDE.md**: Deployment-specific instructions and considerations
 
-### 5. Repository Documentation
+#### 2. Developer Documentation (docs/developer/)
 
-- **new_repositories_integration.md**: An overview of the newly added repositories and how they integrate with the project.
-- **factorizephys_overview.md**: Documentation for the FactorizePhys repository, which provides synchronized capture of RGB video, thermal video, and physiological data.
-- **mmrphys_overview.md**: Documentation for the MMRPhys repository, which implements multidimensional attention and target signal constrained factorization for remote physiological sensing.
-- **tc001_samcl_overview.md**: Documentation for the TC001_SAMCL repository, which provides specialized thermal imaging and segmentation capabilities.
-- **technical_guide.md**: A comprehensive technical guide covering hardware setup, device integration (including Shimmer GSR and PPG sensors), data synchronization, and system validation.
+- **DEVELOPER_GUIDE.md**: Comprehensive contributor guide including:
+  - Getting started for contributors
+  - Code of conduct
+  - Development environment setup
+  - Development workflow and branching strategy
+  - Pre-commit hooks and code quality
+  - Coding standards and style guidelines
+  - Testing guidelines and best practices
+  - Pull request process
+  - Continuous integration workflows
+  - Issue reporting guidelines
+  - Documentation guidelines
+  - Community information
 
-### 6. Testing Documentation
+- **testing_guide.md**: Detailed testing documentation
+- **test_report_template.md**: Template for test reports
 
-- **testing_guide.md**: A comprehensive testing guide for the project, including the types of tests (unit, smoke, regression), how they are organized, execution instructions, coverage documentation, and mocking strategies for external dependencies.
+#### 3. Technical Documentation (docs/technical/)
 
-### 7. Architecture Documentation
+- **ARCHITECTURE.md**: Comprehensive system architecture including:
+  - System overview and integration architecture
+  - Repository relationships and data flow
+  - Detailed documentation for each repository (FactorizePhys, MMRPhys, TC001_SAMCL)
+  - Supporting libraries and tools
+  - Configuration and data management
+  - Performance and scalability considerations
 
-- **src/ARCHITECTURE.md**: An overview of the project's architecture, including the current structure, proposed improved structure, module boundaries, naming conventions, and documentation guidelines.
+- **technical_guide.md**: Hardware integration and technical details
+- **implementation_overview.md**: Implementation details and improvements
+- **GLOSSARY.md**: Technical terms and definitions
+- **data_collection_guide.tex**: Technical data collection protocols
 
-### 8. Research Documentation
+#### 4. Project Documentation (docs/project/)
 
-- **research_report.md**: A report on the research conducted for the project.
-- **proposal.tex** and **proposal_updated.tex**: Research proposals for the project.
-- **appendix.tex**: Additional research materials.
-- **data_collection_initial.tex** and **data_collection_revised.tex**: Data collection protocols.
-- **consent_form.tex** and **information_sheet.tex**: Forms for study participants.
+- **project_roadmap.md**: Project timeline and future plans
+- **documentation_strategy.md**: This document - documentation organization strategy
+- **DEPENDENCY_REPORT.md**: Dependency analysis and health
+- **INDUSTRY_STANDARDS_SUMMARY.md**: Adopted standards and compliance
+- **proposal_updated.tex**: Research proposal
+- **consent_form.tex**: Study participant consent form
+- **information_sheet.tex**: Participant information sheet
+
+#### 5. Reference Materials (docs/references/)
+
+- **references.bib**: Academic citations and references
+- **appendix.tex**: Additional research materials
+- **Key Topics and Research Areas from the LaTeX Document.pdf**: Research context
 
 ## Documentation Consolidation Rationale
 

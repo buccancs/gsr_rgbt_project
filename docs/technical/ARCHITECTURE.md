@@ -752,4 +752,4 @@ The modular design ensures that each component can be developed, tested, and imp
 
 The system's ability to provide both contact-based and non-contact physiological measurements, combined with advanced signal processing and machine learning capabilities, makes it a valuable tool for researchers and practitioners in healthcare monitoring, affective computing, human-computer interaction, and biometric authentication.
 
-For detailed usage instructions and tutorials, please refer to the [Integrated System Tutorial](integrated_system_tutorial.md) and other project documentation.
+For detailed usage instructions and tutorials, please refer to the [User Guide](USER_GUIDE.md) and other project documentation.

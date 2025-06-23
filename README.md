@@ -13,84 +13,57 @@ Skin Response (GSR) from synchronized RGB and thermal video streams. The project
 with a graphical user interface (GUI) and a full machine learning pipeline for data processing, model training, and
 evaluation.
 
-## Project Architecture
+## Features
 
-The project is structured into two main parts:
+- **Multi-modal Data Collection**: Synchronized capture from RGB cameras, thermal cameras (FLIR), and GSR sensors (Shimmer3 GSR+)
+- **Real-time Processing**: Multi-threaded architecture for responsive data acquisition
+- **Machine Learning Pipeline**: Complete ML workflow with multiple model architectures (LSTM, CNN, Transformer, ResNet, VAE)
+- **Flexible Configuration**: YAML-based configuration system for models and pipelines
+- **Comprehensive Testing**: Full test suite with coverage reporting and CI/CD integration
+- **Cross-platform Support**: Works on Windows, macOS, and Linux
 
-### Data Acquisition Application (src/)
+## Quick Start
 
-A PyQt5-based application for collecting synchronized multimodal data.
+Get up and running in 3 simple steps:
 
-- **main.py**: The main entry point that runs the GUI application.
-- **gui/**: Defines the main window and UI components.
-- **capture/**: Contains threaded modules for video and physiological sensor data capture.
-- **utils/**: Includes helper classes like the DataLogger.
-- **config.py**: A centralized file for all hardware and application settings.
+1. **Clone and Setup**:
+   ```bash
+   git clone https://github.com/your-organization/gsr-rgbt-project.git
+   cd gsr-rgbt-project
+   chmod +x gsr_rgbt_tools.sh
+   ./gsr_rgbt_tools.sh setup
+   ```
 
-### Machine Learning Pipeline (src/processing, src/ml_models, src/scripts)
+2. **Run Data Collection**:
+   ```bash
+   ./gsr_rgbt_tools.sh collect
+   ```
 
-A series of scripts to process the collected data, train a predictive model, and evaluate its performance.
+3. **Train Models**:
+   ```bash
+   ./gsr_rgbt_tools.sh train --config configs/pipeline/default.yaml
+   ```
 
-- **processing/**: Modules for loading, preprocessing, and creating feature windows from the raw data.
-  - data_loader.py: Loads GSR data and video frames from session recordings.
-  - preprocessing.py: Processes raw data, including Multi-ROI detection and extraction using MediaPipe.
-  - feature_engineering.py: Creates feature windows from processed data.
+For detailed instructions, see the collapsible sections below.
 
-- **ml_models/**: Defines the neural network architectures and model configuration system.
-  - model_interface.py: Provides a common interface for all models, regardless of framework.
-  - models.py: Implements TensorFlow/Keras model architectures (legacy support).
-  - pytorch_models.py: Implements PyTorch versions of LSTM, Autoencoder, and VAE models.
-  - pytorch_cnn_models.py: Implements CNN and CNN-LSTM hybrid models.
-  - pytorch_transformer_models.py: Implements Transformer models for time series data.
-  - pytorch_resnet_models.py: Implements ResNet models for time series data.
-  - model_config.py: Provides a flexible configuration system for model hyperparameters.
+## Detailed Guide
 
-- **scripts/**: Contains the high-level scripts for training, inference, and evaluation.
+<details>
+<summary><strong>🔧 Installation & Setup</strong> (Click to expand)</summary>
 
-### Proposed Improved Architecture
+### Prerequisites
+- Git
+- Python 3.9+
+- Windows Subsystem for Linux (WSL) or a native Linux/macOS environment
 
-For future development, an improved architecture has been proposed to better organize the codebase and improve maintainability. See [src/ARCHITECTURE.md](src/ARCHITECTURE.md) for details.
-
-## Setup and Installation
-
-Follow these steps to set up the project environment.
-
-### 1. Clone the Repository
-
-Clone this repository to your local machine.
-
+### Step 1: Clone the Repository
 ```bash
 git clone https://github.com/your-organization/gsr-rgbt-project.git
 cd gsr-rgbt-project
 ```
 
-### 2. Create a Python Virtual Environment
-
-It is strongly recommended to use a virtual environment to manage project dependencies and avoid conflicts.
-
-```bash
-# Create the environment
-python -m venv .venv
-
-# Activate the environment
-# On macOS/Linux:
-source .venv/bin/activate
-
-# On Windows:
-.venv\Scripts\activate
-```
-
-### 3. Install Dependencies
-
-Install all required Python packages using the requirements.txt file.
-
-```bash
-pip install -r requirements.txt
-```
-
-### 3a. Automated Setup (Alternative)
-
-Alternatively, you can use the provided unified tool script to automate the environment setup process:
+### Step 2: Run the Unified Tool Script
+This script will guide you through installing all dependencies, including Python packages and the FLIR Spinnaker SDK.
 
 ```bash
 # Make the script executable (if needed)
@@ -108,121 +81,325 @@ This script will:
 - Run system validation checks
 - Provide guidance for hardware-specific setup
 
-For more information about the unified tool script, see [docs/GUIDE.md](docs/GUIDE.md).
-
-### 4. Configure Hardware
-
-Before running the data collection application, you must configure your hardware settings in src/config.py:
-
-- **Camera IDs**: Run a camera utility on your machine to find the correct device indices for your RGB and thermal cameras.
-  Update RGB_CAMERA_ID and THERMAL_CAMERA_ID accordingly.
-
-- **GSR Sensor**: If you are using a physical Shimmer sensor, set GSR_SIMULATION_MODE = False. The application will 
-  automatically detect the Shimmer device's COM port. If automatic detection fails, it will fall back to simulation mode.
-  You can also manually specify the port by setting GSR_SENSOR_PORT to the correct serial port (e.g., 'COM3' on Windows).
-
-- **Shimmer Sensor Configuration**: The application supports dynamic configuration of Shimmer sensors. You can specify
-  which sensors to enable (GSR, PPG, Accelerometer) by passing a custom configuration to the GsrCaptureThread. By default,
-  all three sensors are enabled.
-
-- **Shimmer API Integration**: The application includes a unified ShimmerAdapter that integrates with multiple Shimmer APIs:
-  - **pyshimmer**: Used for basic functionality (Bluetooth communication, data streaming)
-  - **Shimmer-C-API**: Used for advanced signal processing (ECG/PPG to Heart Rate/IBI, filtering)
-  - **Shimmer-Java-Android-API**: Used for additional features (GSR calibration, 3D orientation)
-  - **ShimmerAndroidAPI**: Used for Android-specific features
-
-  The adapter automatically detects which APIs are available and provides a consistent interface regardless of the
-  underlying implementation. This allows the application to leverage the strengths of each API while maintaining
-  a clean and consistent codebase.
-
-### 5. Test System and Synchronization
-
-After configuring your hardware, you should run the system validation and synchronization tests:
+### Alternative Manual Setup
+If you prefer to set up manually:
 
 ```bash
-# Run both system validation and synchronization tests
+# Create and activate a virtual environment
+python -m venv .venv
+
+# On macOS/Linux:
+source .venv/bin/activate
+
+# On Windows:
+.venv\Scripts\activate
+
+# Install required Python packages
+pip install -r requirements.txt
+
+# Build Cython extensions
+python setup.py build_ext --inplace
+```
+
+Or use the Makefile:
+```bash
+make setup
+```
+
+</details>
+
+<details>
+<summary><strong>⚙️ Hardware Setup</strong> (Click to expand)</summary>
+
+### Shimmer3 GSR+ Sensor Setup
+
+1. **Pairing**: Use your operating system's Bluetooth settings to pair the device.
+2. **Connection**: The application will automatically detect the COM port. Ensure the device is powered on before starting the application.
+
+#### Detailed Shimmer Setup Steps:
+
+1. **Install Shimmer Connect or ConsensysPRO**:
+   - Download [Shimmer Connect](https://shimmersensing.com/support/wireless-sensor-networks-download/) or [ConsensysPRO](https://shimmersensing.com/support/consensys-download/)
+   - Use this software to:
+     - Update the Shimmer's firmware
+     - Configure its settings (enable the GSR sensor and set the sampling rate)
+     - Pair it via Bluetooth (if using Bluetooth instead of the dock's serial connection)
+
+2. **Identify the Serial Port**:
+   - When connecting the Shimmer via its USB dock, it will appear as a serial port
+   - On macOS: `/dev/tty.usbmodem*` or `/dev/cu.*`
+   - On Windows: `COM*` ports
+   - On Linux: `/dev/ttyUSB*` or `/dev/ttyACM*`
+
+3. **USB-to-Serial Driver (if needed)**:
+   - Most operating systems have built-in drivers for common USB-to-Serial chips
+   - If the device isn't recognized, you might need to install a specific driver for the chip used in the Shimmer dock
+   - Look for the chip model on the dock (often FTDI or CP210x) and download the appropriate driver
+
+### FLIR Camera (Spinnaker)
+
+The FLIR thermal camera **requires** the Spinnaker SDK, which provides the PySpin library used by the application.
+
+1. **Download the FLIR Spinnaker SDK**:
+   - Visit the [FLIR website](https://www.flir.com/products/spinnaker-sdk/)
+   - You will need to create a free FLIR account if you don't already have one
+   - Select the appropriate version for your operating system
+
+2. **Install the Spinnaker SDK**:
+   - Open the downloaded package and follow the installation wizard
+   - **IMPORTANT**: During installation, make sure to select the option to install the Python bindings (PySpin)
+   - You may need administrator privileges to complete the installation
+   - After installation, you may need to restart your computer
+
+3. **Verify the installation**:
+   ```bash
+   # Activate your Python environment first if you're using one
+   source .venv/bin/activate
+
+   # Then run this command to verify PySpin is installed
+   python -c "import PySpin; system = PySpin.System.GetInstance(); version = system.GetLibraryVersion(); print(f'PySpin installed successfully. Version: {version.major}.{version.minor}.{version.type}.{version.build}'); system.ReleaseInstance()"
+   ```
+
+4. **Troubleshooting SDK Installation**:
+   - If you get an import error for PySpin, ensure that you installed the Python bindings during SDK installation
+   - If you're using a virtual environment, you may need to reinstall the SDK or create a symlink to the PySpin module
+   - On some systems, you might need to install additional dependencies like libusb
+   - Check the FLIR Spinnaker SDK documentation for platform-specific installation issues
+
+</details>
+
+<details>
+<summary><strong>🚀 Usage</strong> (Click to expand)</summary>
+
+### Running the Data Collection Application
+
+1. **Start the GUI Application**:
+   ```bash
+   ./gsr_rgbt_tools.sh collect
+   ```
+
+   Or manually:
+   ```bash
+   python src/data_collection/main.py
+   ```
+
+2. **Configure Data Collection**:
+   - Set the subject ID and session parameters
+   - Configure camera settings (resolution, frame rate)
+   - Set GSR sensor parameters
+   - Choose output directory
+
+3. **Start Recording**:
+   - Click "Start Recording" to begin synchronized data capture
+   - Monitor real-time data streams
+   - Stop recording when complete
+
+### Running the Machine Learning Pipeline
+
+1. **Process Collected Data**:
+   ```bash
+   ./gsr_rgbt_tools.sh process --input data/recordings/subject01
+   ```
+
+2. **Train Models**:
+   ```bash
+   ./gsr_rgbt_tools.sh train --config configs/pipeline/default.yaml
+   ```
+
+3. **Evaluate Models**:
+   ```bash
+   ./gsr_rgbt_tools.sh evaluate --model outputs/models/lstm_model.pth
+   ```
+
+### Configuration Options
+
+The system uses YAML configuration files for flexible setup:
+
+- **Model Configurations**: `configs/models/`
+- **Pipeline Configurations**: `configs/pipeline/`
+- **Hardware Configurations**: `src/data_collection/config.py`
+
+</details>
+
+<details>
+<summary><strong>🤔 Troubleshooting</strong> (Click to expand)</summary>
+
+### Common Issues and Solutions
+
+**Problem: Shimmer device not found**
+- **Solution 1**: Ensure the device is fully charged and powered on
+- **Solution 2**: Verify that the device is successfully paired in your system's Bluetooth settings
+- **Solution 3**: On Windows, check the Device Manager to see if the virtual COM port has been created
+- **Solution 4**: Try reconnecting the USB dock or restarting the Bluetooth connection
+
+**Problem: FLIR camera not detected**
+- **Solution 1**: Verify that the Spinnaker SDK is properly installed with Python bindings
+- **Solution 2**: Check that the camera is connected via USB 3.0 for optimal performance
+- **Solution 3**: Ensure no other applications are using the camera
+- **Solution 4**: Try running the camera test utility provided with the Spinnaker SDK
+
+**Problem: Python import errors**
+- **Solution 1**: Ensure you're using the correct Python environment (activate your virtual environment)
+- **Solution 2**: Reinstall dependencies: `pip install -r requirements.txt`
+- **Solution 3**: Rebuild Cython extensions: `python setup.py build_ext --inplace`
+
+**Problem: GUI application crashes**
+- **Solution 1**: Check the console output for error messages
+- **Solution 2**: Verify all hardware is properly connected and configured
+- **Solution 3**: Try running in simulation mode first to isolate hardware issues
+
+**Problem: Low performance or dropped frames**
+- **Solution 1**: Close unnecessary applications to free up system resources
+- **Solution 2**: Use USB 3.0 ports for cameras
+- **Solution 3**: Reduce camera resolution or frame rate if needed
+- **Solution 4**: Ensure adequate disk space for data storage
+
+</details>
+
+<details>
+<summary><strong>👨‍💻 Developer Guide</strong> (Click to expand)</summary>
+
+### Development Setup
+
+1. **Install Development Dependencies**:
+   ```bash
+   pip install -r requirements-dev.txt
+   ```
+
+2. **Set up Pre-commit Hooks**:
+   ```bash
+   pre-commit install
+   ```
+
+3. **Run Tests**:
+   ```bash
+   ./gsr_rgbt_tools.sh test
+   ```
+
+### Code Style and Standards
+
+- **Python**: Follow PEP 8 guidelines
+- **Code Formatting**: Use Black for automatic formatting
+- **Linting**: Use flake8 for code quality checks
+- **Type Hints**: Use type annotations where appropriate
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Make your changes and add tests
+4. Run the test suite: `make test`
+5. Submit a pull request
+
+### Testing
+
+- **Unit Tests**: Located in `src/tests/`
+- **Integration Tests**: Test complete workflows
+- **Coverage**: Aim for >80% code coverage
+- **CI/CD**: Automated testing via GitHub Actions
+
+For detailed developer information, see [docs/developer/DEVELOPER_GUIDE.md](docs/developer/DEVELOPER_GUIDE.md).
+
+</details>
+
+## Project Architecture
+
+<details>
+<summary><strong>🏗️ System Architecture</strong> (Click to expand)</summary>
+
+### Overview
+
+This project is designed as a modular, multi-threaded application for synchronized, multi-modal physiological data collection and subsequent machine learning analysis. The architecture is divided into three main components: `data_collection`, `ml_pipeline`, and `utils`.
+
+### Core Components
+
+- **`data_collection/`**: Contains the main PyQt5 application and all modules related to real-time data acquisition.
+  - **`main.py`**: The entry point for the GUI application. It initializes all capture threads and manages the application state.
+  - **`capture/`**: Holds individual `QThread` classes for each sensor (RGB camera, thermal camera, Shimmer GSR). This ensures the GUI remains responsive during data capture.
+  - **`ui/`**: Contains the user interface files generated from Qt Designer (`.ui`).
+
+- **`ml_pipeline/`**: Includes all scripts and modules for offline data processing and machine learning.
+  - **`run_ml_pipeline_from_config.py`**: The master script to run the entire ML pipeline based on a YAML configuration file.
+  - **`models/`**: Defines the neural network architectures.
+  - **`processing/`**: Contains scripts for data loading, preprocessing, and feature extraction.
+
+- **`utils/`**: A collection of shared utility modules used across the project.
+  - **`data_logger.py`**: A robust class for handling the writing of all data streams to disk.
+  - **`device_utils.py`**: Contains helper functions for hardware, such as the automatic Shimmer COM port detection.
+
+### Data Flow
+
+1. **Data Collection**: Multi-threaded capture from various sensors
+2. **Data Storage**: Synchronized writing to disk with timestamps
+3. **Data Processing**: Feature extraction and preprocessing
+4. **Model Training**: ML pipeline with configurable architectures
+5. **Evaluation**: Performance assessment and visualization
+
+For detailed architecture information, see [docs/technical/ARCHITECTURE.md](docs/technical/ARCHITECTURE.md).
+
+</details>
+
+## Documentation
+
+For comprehensive documentation, please refer to:
+
+- **[User Guide](docs/user/USER_GUIDE.md)**: Complete tutorial for using the system
+- **[Developer Guide](docs/developer/DEVELOPER_GUIDE.md)**: Contributing guidelines and development workflow
+- **[Architecture Guide](docs/technical/ARCHITECTURE.md)**: Detailed system architecture and design
+- **[Technical Guide](docs/technical/technical_guide.md)**: Hardware integration and technical details
+- **[Testing Guide](docs/developer/testing_guide.md)**: Testing strategy and execution
+
+## Command Line Interface
+
+The project includes a unified tool script that provides easy access to all functionality:
+
+```bash
+# Get help and see all available commands
+./gsr_rgbt_tools.sh help
+
+# Setup the environment
+./gsr_rgbt_tools.sh setup
+
+# Run data collection
+./gsr_rgbt_tools.sh collect
+
+# Train models
+./gsr_rgbt_tools.sh train --config configs/pipeline/default.yaml
+
+# Run tests
 ./gsr_rgbt_tools.sh test
-
-# Alternatively, you can use the individual scripts or make targets
-python src/scripts/check_system.py
-python src/scripts/test_synchronization.py
-# or
-make test
-make test_sync
 ```
 
-The system validation check verifies that all required dependencies are installed and that the configured devices can be accessed. The synchronization test verifies that the data synchronization mechanism is working properly.
+## Citation & License
 
-For more information about the data synchronization approach used in this project, see [docs/synchronization.md](docs/synchronization.md).
+### Citation
 
-### 6. Run Everything (All-in-One Command)
+If you use this software in your research, please cite:
 
-The project includes a unified tool script (gsr_rgbt_tools.sh) that serves as the canonical interface for all setup and run tasks:
-
-```bash
-# Run everything (validation, tests, pipeline, and optionally the app)
-./gsr_rgbt_tools.sh run
+```bibtex
+@article{gsr_rgbt_2024,
+  title={Contactless GSR Estimation from RGB-Thermal Video},
+  author={[Your Name]},
+  journal={[Journal Name]},
+  year={2024},
+  publisher={[Publisher]}
+}
 ```
 
-This command will:
-- Check and set up the Python virtual environment (if needed)
-- Run system validation checks
-- Run synchronization tests
-- Generate mock data (if no data exists)
-- Run the full ML pipeline (training, inference, evaluation)
-- Optionally run the data collection application
+### License
 
-The script includes error handling and will continue with subsequent steps even if some steps fail (with appropriate warnings). This is useful for running the entire system in one go, especially for testing or demonstration purposes.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-You can also run specific components:
+### Acknowledgments
 
-```bash
-# Run just the data collection application
-./gsr_rgbt_tools.sh run --component=app
+- FLIR Systems for the Spinnaker SDK
+- Shimmer Research for the GSR+ sensor platform
+- The open-source community for the various libraries and tools used in this project
 
-# Run just the ML pipeline
-./gsr_rgbt_tools.sh run --component=pipeline
+---
 
-# Generate mock data
-./gsr_rgbt_tools.sh run --component=mock_data
-```
+**Note**: This project is for research purposes. Ensure compliance with all applicable regulations and ethical guidelines when collecting physiological data.
 
-For more information about the unified tool script, see [docs/GUIDE.md](docs/GUIDE.md).
-
-## How to Use the Pipeline
-
-The project pipeline consists of three main stages, executed in sequence.
-
-### Stage 1: Data Collection
-
-Run the GUI application to collect session data from participants.
-
-```bash
-python src/main.py
-```
-
-1. Launch the application.
-2. Enter a unique Subject ID in the input field.
-3. Click the Start Recording button to begin capturing video and GSR data.
-4. Follow your experimental protocol (guiding the participant through tasks).
-5. Click the Stop Recording button to end the session.
-
-A new folder containing all recorded data for that session will be created in `data/recordings/`. Repeat for all
-participants.
-
-### Stage 2: Model Training
-
-Once you have collected data for all subjects, you can either run the individual training script or use the config-driven pipeline execution script. Both support different model types and configurations through a flexible command-line interface.
-
-#### Creating Example Configuration Files
-
-First, create example configuration files for all supported model types:
-
-```bash
-python src/scripts/train_model.py --create-example-configs
-```
-
-This will create YAML configuration files in the `configs/models/` directory that you can customize for your experiments.
 
 #### Training with Default Configuration
 
