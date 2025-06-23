@@ -94,7 +94,7 @@ When reporting issues, please use the issue templates provided in the repository
 
 - Write tests for all new features and bug fixes
 - Ensure all tests pass before submitting a pull request
-- Follow the testing strategy outlined in [testing_strategy.md](testing_strategy.md)
+- Follow the testing strategy outlined in [testing_guide.md](testing_guide.md)
 - Use the appropriate test type:
   - **Unit Tests**: Test individual components in isolation
   - **Smoke Tests**: Verify that the main functionality runs without errors

@@ -27,7 +27,6 @@ The GSR-RGBT project documentation is organized into the following categories:
 - **technical_guide.md**: A comprehensive technical guide covering hardware setup, device integration, data synchronization, and system validation. This document consolidates information from:
   - device_integration.md (device integration details)
   - equipment_setup.md (hardware setup instructions)
-  - shimmer_integration.md (Shimmer3 GSR+ integration)
   - timestamp_synchronization.md (synchronization methods)
   - synchronization.md (synchronization approach)
 
@@ -45,15 +44,11 @@ The GSR-RGBT project documentation is organized into the following categories:
 - **factorizephys_overview.md**: Documentation for the FactorizePhys repository, which provides synchronized capture of RGB video, thermal video, and physiological data.
 - **mmrphys_overview.md**: Documentation for the MMRPhys repository, which implements multidimensional attention and target signal constrained factorization for remote physiological sensing.
 - **tc001_samcl_overview.md**: Documentation for the TC001_SAMCL repository, which provides specialized thermal imaging and segmentation capabilities.
-- **rgbt_phys_integration.md**: Documentation for the integration of the RGBTPhys_CPP library.
-- **shimmer_integration.md**: Documentation for the integration of Shimmer GSR and PPG sensors.
+- **technical_guide.md**: A comprehensive technical guide covering hardware setup, device integration (including Shimmer GSR and PPG sensors), data synchronization, and system validation.
 
 ### 6. Testing Documentation
 
-- **testing_strategy.md**: An overview of the testing strategy for the project, including the types of tests (unit, smoke, regression) and how they are organized.
-- **test_coverage.md**: Documentation of what components are covered by tests and what aspects of each component are tested.
-- **test_execution.md**: Instructions for running tests, including any required setup or configuration.
-- **test_mocking.md**: Documentation of the mocking strategy for external dependencies, such as hardware devices or third-party libraries.
+- **testing_guide.md**: A comprehensive testing guide for the project, including the types of tests (unit, smoke, regression), how they are organized, execution instructions, coverage documentation, and mocking strategies for external dependencies.
 
 ### 7. Architecture Documentation
 

@@ -261,14 +261,14 @@ To combine signals from different modalities:
 If you encounter issues not covered in this tutorial:
 
 1. Check the documentation for each individual component:
-   - [FactorizePhys Documentation](factorizephys_overview.md)
-   - [MMRPhys Documentation](mmrphys_overview.md)
-   - [TC001_SAMCL Documentation](tc001_samcl_overview.md)
+   - [FactorizePhys Documentation](system_architecture.md#factorizephys-repository-overview)
+   - [MMRPhys Documentation](system_architecture.md#mmrphys-repository-overview)
+   - [TC001_SAMCL Documentation](system_architecture.md#tc001_samcl-repository-overview)
 
 2. Review the integration documentation:
-   - [New Repositories Integration](new_repositories_integration.md)
-   - [RGBTPhys_CPP Integration](rgbt_phys_integration.md)
-   - [Shimmer Integration](shimmer_integration.md)
+   - [New Repositories Integration](system_architecture.md#integration-of-new-repositories-in-the-gsr-rgbt-project)
+   - [RGBTPhys_CPP Integration](technical_guide.md#rgbtphys_cpp-integration)
+   - [Shimmer Integration](technical_guide.md#shimmer-integration)
 
 3. Check the issue tracker on GitHub for known issues and solutions.
 
